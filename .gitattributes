@@ -1,0 +1,8 @@
+# Podrazumijevano: git sam bira, ali fajlovi koji se izvršavaju na Linux serveru
+# MORAJU imati LF (CRLF razbija shebang i nginx include putanje).
+* text=auto
+
+*.sh        text eol=lf
+*.tpl       text eol=lf
+*.stpl      text eol=lf
+deploy/**   text eol=lf

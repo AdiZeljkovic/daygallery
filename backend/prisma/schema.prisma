@@ -1,0 +1,445 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Auth & tenancy
+// ============================================================
+
+enum Role {
+  superadmin
+  client
+  staff
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique @db.VarChar(190)
+  passwordHash String   @map("password_hash") @db.VarChar(100)
+  name         String   @db.VarChar(100)
+  role         Role     @default(client)
+  // kill-switch: bump da poništiš sve izdane JWT-ove ovog korisnika
+  tokenVersion Int      @default(0) @map("token_version")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  venues     Venue[]
+  events     Event[]
+  staffOf    VenueStaff?
+  tasks      Task[]      @relation("TaskAssignee")
+
+  @@map("users")
+}
+
+// ============================================================
+// Osoblje objekta — konobar / kuhinja&šank / dodatni šef
+// ============================================================
+
+enum StaffRole {
+  manager
+  waiter
+  kitchen
+}
+
+model VenueStaff {
+  id      Int       @id @default(autoincrement())
+  venueId Int       @map("venue_id")
+  userId  Int       @unique @map("user_id") // jedan radnik = jedan objekat
+  role    StaffRole
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([venueId])
+  @@map("venue_staff")
+}
+
+// ============================================================
+// Venues & digital menu
+// ============================================================
+
+model Venue {
+  id                Int      @id @default(autoincrement())
+  slug              String   @unique @db.VarChar(24) // nanoid — QR target
+  // stari day-gallery menu id — da odštampani QR /menu?id=<legacyId> nastavi raditi
+  legacyId          String?  @unique @map("legacy_id") @db.VarChar(64)
+  ownerUserId       Int      @map("owner_user_id")
+  name              String   @db.VarChar(120)
+  logoPath          String?  @map("logo_path") @db.VarChar(255)
+  address           String?  @db.VarChar(200)
+  phone             String?  @db.VarChar(30)
+  currency          String   @default("BAM") @db.VarChar(10)
+  defaultLang       String   @default("bs") @map("default_lang") @db.Char(2)
+  theme             Json?
+  googleReviewUrl   String?  @map("google_review_url") @db.VarChar(500)
+  reviewGateEnabled Boolean  @default(false) @map("review_gate_enabled")
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  owner     User              @relation(fields: [ownerUserId], references: [id])
+  menus     Menu[]
+  orders    Order[]
+  feedback  PrivateFeedback[]
+  staff     VenueStaff[]
+  tasks     Task[]
+  inventory InventoryItem[]
+
+  @@index([ownerUserId])
+  @@map("venues")
+}
+
+model Menu {
+  id       Int     @id @default(autoincrement())
+  venueId  Int     @map("venue_id")
+  name     String  @db.VarChar(120)
+  isActive Boolean @default(true) @map("is_active")
+
+  venue      Venue          @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  categories MenuCategory[]
+
+  @@index([venueId])
+  @@map("menus")
+}
+
+enum CategoryKind {
+  food
+  drink
+  promo
+}
+
+model MenuCategory {
+  id        Int          @id @default(autoincrement())
+  menuId    Int          @map("menu_id")
+  name      String       @db.VarChar(120)
+  kind      CategoryKind @default(food)
+  sortOrder Int          @default(0) @map("sort_order")
+  isActive  Boolean      @default(true) @map("is_active")
+
+  menu         Menu                      @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  items        MenuItem[]
+  translations MenuCategoryTranslation[]
+
+  @@index([menuId])
+  @@map("menu_categories")
+}
+
+model MenuCategoryTranslation {
+  id         Int    @id @default(autoincrement())
+  categoryId Int    @map("category_id")
+  lang       String @db.Char(2)
+  name       String @db.VarChar(120)
+
+  category MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, lang])
+  @@map("menu_category_translations")
+}
+
+model MenuItem {
+  id              Int     @id @default(autoincrement())
+  categoryId      Int     @map("category_id")
+  name            String  @db.VarChar(150)
+  description     String? @db.VarChar(500)
+  price           Decimal @db.Decimal(10, 2)
+  imagePath       String? @map("image_path") @db.VarChar(255)
+  discountPercent Int?    @map("discount_percent") @db.TinyInt
+  isFeatured      Boolean @default(false) @map("is_featured")
+  isAvailable     Boolean @default(true) @map("is_available")
+  sortOrder       Int     @default(0) @map("sort_order")
+  // inventar: null = stanje se ne prati; potvrđena narudžba odbija količinu
+  stockQty        Int?    @map("stock_qty")
+  lowStockAt      Int?    @map("low_stock_at")
+
+  category     MenuCategory          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  translations MenuItemTranslation[]
+  orderItems   OrderItem[]
+
+  @@index([categoryId])
+  @@map("menu_items")
+}
+
+model MenuItemTranslation {
+  id          Int     @id @default(autoincrement())
+  itemId      Int     @map("item_id")
+  lang        String  @db.Char(2)
+  name        String  @db.VarChar(150)
+  description String? @db.VarChar(500)
+
+  item MenuItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, lang])
+  @@map("menu_item_translations")
+}
+
+// ============================================================
+// Orders
+// ============================================================
+
+enum OrderStatus {
+  pending
+  accepted
+  rejected
+  completed
+}
+
+model Order {
+  id              Int         @id @default(autoincrement())
+  publicId        String      @unique @map("public_id") @db.VarChar(24) // gostov status URL
+  venueId         Int         @map("venue_id")
+  tableNumber     String      @map("table_number") @db.VarChar(20)
+  note            String?     @db.VarChar(500)
+  status          OrderStatus @default(pending)
+  // total se UVIJEK računa server-side iz DB cijena
+  total           Decimal     @db.Decimal(10, 2)
+  createdAt       DateTime    @default(now()) @map("created_at")
+  statusChangedAt DateTime?   @map("status_changed_at")
+
+  venue Venue       @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  items OrderItem[]
+
+  @@index([venueId, status])
+  @@index([venueId, createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                Int     @id @default(autoincrement())
+  orderId           Int     @map("order_id")
+  menuItemId        Int?    @map("menu_item_id")
+  // snapshot: historija narudžbi preživi izmjene/brisanja menija
+  nameSnapshot      String  @map("name_snapshot") @db.VarChar(150)
+  unitPriceSnapshot Decimal @map("unit_price_snapshot") @db.Decimal(10, 2)
+  quantity          Int
+  lineTotal         Decimal @map("line_total") @db.Decimal(10, 2)
+
+  order    Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+// ============================================================
+// Events: gallery / invites / seating
+// ============================================================
+
+model Event {
+  id              Int       @id @default(autoincrement())
+  slug            String    @unique @db.VarChar(24)
+  legacyId        String?   @unique @map("legacy_id") @db.VarChar(64)
+  ownerUserId     Int       @map("owner_user_id")
+  name            String    @db.VarChar(150)
+  eventDate       DateTime? @map("event_date") @db.Date
+  clientNames     String?   @map("client_names") @db.VarChar(200)
+  isPublicGallery Boolean   @default(false) @map("is_public_gallery")
+  // true (default): gostove slike odmah vidljive; false: čekaju odobrenje admina
+  autoApprove     Boolean   @default(true) @map("auto_approve")
+  coverImageId    Int?      @unique @map("cover_image_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  owner      User          @relation(fields: [ownerUserId], references: [id])
+  coverImage EventImage?   @relation("EventCover", fields: [coverImageId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  images     EventImage[]  @relation("EventImages")
+  invites    Invite[]
+  tables     SeatingTable[]
+
+  @@index([ownerUserId])
+  @@map("events")
+}
+
+enum ImageStatus {
+  pending
+  approved
+}
+
+model EventImage {
+  id              Int         @id @default(autoincrement())
+  eventId         Int         @map("event_id")
+  filePath        String      @map("file_path") @db.VarChar(255)
+  thumbPath       String      @map("thumb_path") @db.VarChar(255)
+  width           Int
+  height          Int
+  bytes           Int
+  status          ImageStatus @default(pending)
+  inPublicGallery Boolean     @default(false) @map("in_public_gallery")
+  uploadedAt      DateTime    @default(now()) @map("uploaded_at")
+
+  event        Event  @relation("EventImages", fields: [eventId], references: [id], onDelete: Cascade)
+  coverOfEvent Event? @relation("EventCover")
+
+  @@index([eventId, status])
+  // moderacija: pending slike SVIH galerija, najstarije prve
+  @@index([status, uploadedAt])
+  @@map("event_images")
+}
+
+enum InviteVariant {
+  standard
+  wedding
+}
+
+model Invite {
+  id             Int           @id @default(autoincrement())
+  slug           String        @unique @db.VarChar(24)
+  legacyId       String?       @unique @map("legacy_id") @db.VarChar(64)
+  eventId        Int?          @map("event_id")
+  variant        InviteVariant @default(standard)
+  title          String        @db.VarChar(150)
+  hostNames      String        @map("host_names") @db.VarChar(200)
+  date           DateTime?     @db.Date
+  time           String?       @db.VarChar(10)
+  location       String?       @db.VarChar(200)
+  message        String?       @db.VarChar(1000)
+  coverImagePath String?       @map("cover_image_path") @db.VarChar(255)
+  // samo prezentacijski tekstovi (story, venue copy...) — nikad se ne query-a
+  weddingDetails Json?         @map("wedding_details")
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  event    Event?               @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  schedule InviteScheduleItem[]
+  rsvps    Rsvp[]
+
+  @@map("invites")
+}
+
+model InviteScheduleItem {
+  id        Int    @id @default(autoincrement())
+  inviteId  Int    @map("invite_id")
+  time      String @db.VarChar(10)
+  title     String @db.VarChar(150)
+  location  String? @db.VarChar(200)
+  sortOrder Int    @default(0) @map("sort_order")
+
+  invite Invite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+
+  @@index([inviteId])
+  @@map("invite_schedule_items")
+}
+
+model Rsvp {
+  id        Int      @id @default(autoincrement())
+  inviteId  Int      @map("invite_id")
+  name      String   @db.VarChar(100)
+  phone     String?  @db.VarChar(50)
+  attending Boolean
+  plusOnes  Int      @default(0) @map("plus_ones")
+  note      String?  @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  invite Invite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+
+  @@index([inviteId])
+  @@map("rsvps")
+}
+
+enum TableType {
+  normal
+  vip
+}
+
+model SeatingTable {
+  id        Int       @id @default(autoincrement())
+  eventId   Int       @map("event_id")
+  label     String    @db.VarChar(20)
+  type      TableType @default(normal)
+  guests    String?   @db.Text
+  sortOrder Int       @default(0) @map("sort_order")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@map("seating_tables")
+}
+
+// ============================================================
+// Inventar (opći potrošni materijal) + taskovi/smjene
+// ============================================================
+
+model InventoryItem {
+  id         Int      @id @default(autoincrement())
+  venueId    Int      @map("venue_id")
+  name       String   @db.VarChar(120)
+  unit       String   @default("kom") @db.VarChar(20)
+  quantity   Decimal  @default(0) @db.Decimal(10, 2)
+  lowStockAt Decimal? @map("low_stock_at") @db.Decimal(10, 2)
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId])
+  @@map("inventory_items")
+}
+
+enum TaskKind {
+  task
+  shift
+}
+
+enum TaskRecurrence {
+  none
+  daily
+  weekly
+  monthly
+}
+
+model Task {
+  id              Int            @id @default(autoincrement())
+  venueId         Int            @map("venue_id")
+  title           String         @db.VarChar(150)
+  note            String?        @db.VarChar(500)
+  kind            TaskKind       @default(task)
+  // null = svi radnici
+  assigneeUserId  Int?           @map("assignee_user_id")
+  date            DateTime       @db.Date
+  startTime       String?        @map("start_time") @db.VarChar(5)
+  endTime         String?        @map("end_time") @db.VarChar(5)
+  recurrence      TaskRecurrence @default(none)
+  recurrenceUntil DateTime?      @map("recurrence_until") @db.Date
+  createdById     Int            @map("created_by_id")
+  createdAt       DateTime       @default(now()) @map("created_at")
+
+  venue       Venue            @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  assignee    User?            @relation("TaskAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+  completions TaskCompletion[]
+
+  @@index([venueId, date])
+  @@map("tasks")
+}
+
+model TaskCompletion {
+  id       Int      @id @default(autoincrement())
+  taskId   Int      @map("task_id")
+  // datum konkretne pojave (za ponavljajuće taskove)
+  date     DateTime @db.Date
+  doneById Int      @map("done_by_id")
+  doneAt   DateTime @default(now()) @map("done_at")
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, date])
+  @@map("task_completions")
+}
+
+// ============================================================
+// Review funnel
+// ============================================================
+
+model PrivateFeedback {
+  id        Int      @id @default(autoincrement())
+  venueId   Int      @map("venue_id")
+  rating    Int      @db.TinyInt
+  name      String?  @db.VarChar(100)
+  contact   String?  @db.VarChar(100)
+  message   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId])
+  @@map("private_feedback")
+}

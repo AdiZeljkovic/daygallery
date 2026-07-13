@@ -1,0 +1,152 @@
+{
+  "landing": {
+    "nav": {
+      "products": "Proizvodi",
+      "gallery": "Galerija",
+      "faq": "Pitanja",
+      "contact": "Kontakt",
+      "admin": "Prijava"
+    },
+    "hero": {
+      "eyebrow": "Premium digitalna rješenja za evente",
+      "title1": "Tvoji gosti snimaju.",
+      "title2": "Ti pamtiš zauvijek.",
+      "sub": "QR galerije, digitalne pozivnice, raspored sjedenja i digitalni meni sa naručivanjem — sve na jednom mjestu, bez aplikacija i komplikacija.",
+      "cta": "Pogledaj proizvode",
+      "statEvents": "Eventa",
+      "statMemories": "Uspomena",
+      "statSupport": "Podrška",
+      "scrollHint": "Skrolaj",
+      "trustedBy": "Vjeruju nam parovi, organizatori i ugostitelji širom BiH"
+    },
+    "products": {
+      "overline": "Šta nudimo",
+      "title": "Četiri proizvoda. Jedan standard.",
+      "gallery": {
+        "name": "Event galerija",
+        "desc": "Gosti skeniraju QR kod i šalju fotografije bez aplikacije i registracije. Sve uspomene sa vašeg eventa, automatski na jednom mjestu.",
+        "f1": "Upload bez aplikacije",
+        "f2": "Moderacija po želji",
+        "f3": "Preuzimanje svega u ZIP-u"
+      },
+      "invites": {
+        "name": "Digitalne pozivnice",
+        "desc": "Elegantna pozivnica sa animacijom otvaranja koverte, odbrojavanjem i RSVP sistemom. Uvijek znate ko dolazi.",
+        "f1": "Envelope-reveal animacija",
+        "f2": "RSVP sa brojem pratnje",
+        "f3": "Program dana i lokacija"
+      },
+      "seating": {
+        "name": "Raspored sjedenja",
+        "desc": "Gosti upišu svoje ime i odmah pronađu svoj sto. Bez gužve na ulazu, bez štampanih planova.",
+        "f1": "Pretraga po imenu",
+        "f2": "VIP stolovi",
+        "f3": "Izmjene u realnom vremenu"
+      },
+      "menu": {
+        "name": "Digitalni meni + naručivanje",
+        "badge": "Najtraženije",
+        "desc": "Gost skenira QR, pregleda meni, doda u korpu i naruči — konobar dobija narudžbu istog trena, uz zvučnu notifikaciju.",
+        "f1": "Narudžba direktno sa stola",
+        "f2": "Notifikacija u realnom vremenu",
+        "f3": "Vaš brend, vaše boje"
+      }
+    },
+    "how": {
+      "overline": "Kako radi",
+      "title": "Do savršenog eventa u par koraka",
+      "s1t": "Javite nam se",
+      "s1d": "Dogovorimo paket koji vam odgovara.",
+      "s2t": "Mi postavimo sve",
+      "s2d": "Galerija, pozivnica ili meni — spremni isti dan.",
+      "s3t": "Podijelite QR kod",
+      "s3d": "Na stolove, pozivnice ili ekrane.",
+      "s4t": "Uživajte",
+      "s4d": "Sve radi samo — vi se posvetite gostima."
+    },
+    "galleryStrip": {
+      "overline": "Javna galerija",
+      "title": "Uspomene naših klijenata"
+    },
+    "testimonials": {
+      "overline": "Utisci",
+      "title": "Šta kažu naši klijenti",
+      "q1": "Do kraja večeri imali smo preko 300 fotografija od gostiju — bez da smo išta organizovali. Svaka uspomena sačuvana.",
+      "q1a": "Amra & Faruk",
+      "q1i": "vjenčanje · Sarajevo",
+      "q2": "Digitalni meni nam je prepolovio vrijeme čekanja. Gosti naruče sa stola, mi samo potvrdimo — narudžba stigne uz zvuk, ništa se ne propusti.",
+      "q2a": "Mirza H.",
+      "q2i": "vlasnik kafića · Mostar",
+      "q3": "Pozivnica sa animacijom koverte je oduševila sve goste. RSVP lista nam je uštedjela desetine poziva.",
+      "q3a": "Emina D.",
+      "q3i": "event organizator · Sarajevo"
+    },
+    "faq": {
+      "overline": "FAQ",
+      "title": "Najčešća pitanja",
+      "q1": "Trebaju li gosti instalirati aplikaciju?",
+      "a1": "Ne. Gosti skeniraju QR kod običnom kamerom telefona i sve rade kroz internet preglednik — upload slika, RSVP, naručivanje.",
+      "q2": "Kako funkcioniše naručivanje u kafiću?",
+      "a2": "Gost skenira QR kod, pregleda meni, doda artikle u korpu, upiše broj stola i pošalje. Osoblje odmah dobija narudžbu na svom panelu, uz zvučnu notifikaciju, i potvrđuje je jednim klikom.",
+      "q3": "Mogu li kontrolisati koje slike se prikazuju?",
+      "a3": "Da. Možete uključiti ručnu moderaciju — slike gostiju tada čekaju vaše odobrenje prije nego što postanu vidljive u galeriji.",
+      "q4": "Koliko dugo su fotografije dostupne?",
+      "a4": "Galerija je dostupna 12 mjeseci nakon eventa, a sve fotografije u punoj rezoluciji možete preuzeti u ZIP formatu u bilo kojem trenutku."
+    },
+    "contact": {
+      "overline": "Kontakt",
+      "title": "Spremni za vaš poseban dan?",
+      "sub": "Javite nam se — odgovaramo isti dan.",
+      "call": "Pozovite nas",
+      "finalTitle1": "Spremni za vaš",
+      "finalTitle2": "poseban dan?"
+    },
+    "footer": {
+      "rights": "Sva prava zadržana."
+    },
+    "demo": {
+      "order": {
+        "title": "Nova narudžba",
+        "table": "Sto 7",
+        "item1": "2× Cappuccino",
+        "item2": "1× Limunada",
+        "accept": "Prihvati"
+      },
+      "rsvp": {
+        "names": "Amina & Emir",
+        "reply": "Dolazim",
+        "guests": "+2 gosta"
+      },
+      "gallery": {
+        "count": "324 uspomene"
+      }
+    },
+    "manifesto": "Jedan QR kod pretvara svaki telefon u kameru, pozivnicu, konobara i uspomenu. Bez aplikacija. Bez čekanja. Bez propuštenih trenutaka."
+  },
+  "admin": {
+    "login": {
+      "title": "Admin prijava",
+      "subtitle": "Prijavite se na svoj nalog",
+      "email": "Email",
+      "password": "Lozinka",
+      "submit": "Prijavi se",
+      "submitting": "Prijava...",
+      "error": "Pogrešan email ili lozinka"
+    },
+    "nav": {
+      "dashboard": "Početna",
+      "venues": "Objekti",
+      "events": "Eventi",
+      "invites": "Pozivnice",
+      "users": "Korisnici",
+      "logout": "Odjava"
+    },
+    "dashboard": {
+      "welcome": "Dobrodošli, {name}",
+      "venues": "Objekti",
+      "role": "Uloga",
+      "superadmin": "Administrator platforme",
+      "client": "Klijent"
+    }
+  }
+}

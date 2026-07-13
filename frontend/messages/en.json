@@ -1,0 +1,152 @@
+{
+  "landing": {
+    "nav": {
+      "products": "Products",
+      "gallery": "Gallery",
+      "faq": "FAQ",
+      "contact": "Contact",
+      "admin": "Sign in"
+    },
+    "hero": {
+      "eyebrow": "Premium digital solutions for events",
+      "title1": "Your guests capture.",
+      "title2": "You remember forever.",
+      "sub": "QR galleries, digital invitations, seating charts and a digital menu with ordering — all in one place, no apps, no hassle.",
+      "cta": "Explore products",
+      "statEvents": "Events",
+      "statMemories": "Memories",
+      "statSupport": "Support",
+      "scrollHint": "Scroll",
+      "trustedBy": "Trusted by couples, organizers and venues across Bosnia"
+    },
+    "products": {
+      "overline": "What we offer",
+      "title": "Four products. One standard.",
+      "gallery": {
+        "name": "Event gallery",
+        "desc": "Guests scan a QR code and upload photos with no app and no sign-up. Every memory from your event, automatically in one place.",
+        "f1": "Upload without an app",
+        "f2": "Optional moderation",
+        "f3": "Download everything as ZIP"
+      },
+      "invites": {
+        "name": "Digital invitations",
+        "desc": "An elegant invitation with an envelope-opening animation, countdown and RSVP system. Always know who is coming.",
+        "f1": "Envelope-reveal animation",
+        "f2": "RSVP with plus-ones",
+        "f3": "Day schedule and venue"
+      },
+      "seating": {
+        "name": "Seating chart",
+        "desc": "Guests type their name and instantly find their table. No crowd at the entrance, no printed plans.",
+        "f1": "Search by name",
+        "f2": "VIP tables",
+        "f3": "Real-time updates"
+      },
+      "menu": {
+        "name": "Digital menu + ordering",
+        "badge": "Most popular",
+        "desc": "A guest scans the QR, browses the menu, adds to cart and orders — the waiter gets the order instantly, with a sound notification.",
+        "f1": "Order straight from the table",
+        "f2": "Real-time notification",
+        "f3": "Your brand, your colors"
+      }
+    },
+    "how": {
+      "overline": "How it works",
+      "title": "A perfect event in a few steps",
+      "s1t": "Get in touch",
+      "s1d": "We agree on the package that fits you.",
+      "s2t": "We set everything up",
+      "s2d": "Gallery, invitation or menu — ready the same day.",
+      "s3t": "Share the QR code",
+      "s3d": "On tables, invitations or screens.",
+      "s4t": "Enjoy",
+      "s4d": "Everything runs itself — you focus on your guests."
+    },
+    "galleryStrip": {
+      "overline": "Public gallery",
+      "title": "Memories from our clients"
+    },
+    "testimonials": {
+      "overline": "Testimonials",
+      "title": "What our clients say",
+      "q1": "By the end of the evening we had over 300 photos from guests — without organizing anything. Every memory saved.",
+      "q1a": "Amra & Faruk",
+      "q1i": "wedding · Sarajevo",
+      "q2": "The digital menu cut our waiting times in half. Guests order from the table, we just confirm — the order arrives with a sound, nothing gets missed.",
+      "q2a": "Mirza H.",
+      "q2i": "café owner · Mostar",
+      "q3": "The envelope-animation invitation delighted every guest. The RSVP list saved us dozens of phone calls.",
+      "q3a": "Emina D.",
+      "q3i": "event organizer · Sarajevo"
+    },
+    "faq": {
+      "overline": "FAQ",
+      "title": "Frequently asked questions",
+      "q1": "Do guests need to install an app?",
+      "a1": "No. Guests scan the QR code with their phone camera and do everything in the browser — photo uploads, RSVP, ordering.",
+      "q2": "How does ordering work in a café?",
+      "a2": "A guest scans the QR code, browses the menu, adds items to the cart, types their table number and submits. Staff instantly receive the order on their panel, with a sound notification, and confirm it in one click.",
+      "q3": "Can I control which photos are shown?",
+      "a3": "Yes. You can enable manual moderation — guest photos then wait for your approval before becoming visible in the gallery.",
+      "q4": "How long are the photos available?",
+      "a4": "The gallery stays available for 12 months after the event, and you can download all photos in full resolution as a ZIP at any time."
+    },
+    "contact": {
+      "overline": "Contact",
+      "title": "Ready for your special day?",
+      "sub": "Reach out — we reply the same day.",
+      "call": "Call us",
+      "finalTitle1": "Ready for your",
+      "finalTitle2": "special day?"
+    },
+    "footer": {
+      "rights": "All rights reserved."
+    },
+    "demo": {
+      "order": {
+        "title": "New order",
+        "table": "Table 7",
+        "item1": "2× Cappuccino",
+        "item2": "1× Lemonade",
+        "accept": "Accept"
+      },
+      "rsvp": {
+        "names": "Amina & Emir",
+        "reply": "Attending",
+        "guests": "+2 guests"
+      },
+      "gallery": {
+        "count": "324 memories"
+      }
+    },
+    "manifesto": "One QR code turns every phone into a camera, an invitation, a waiter and a memory. No apps. No waiting. No missed moments."
+  },
+  "admin": {
+    "login": {
+      "title": "Admin login",
+      "subtitle": "Sign in to your account",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in...",
+      "error": "Wrong email or password"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "venues": "Venues",
+      "events": "Events",
+      "invites": "Invitations",
+      "users": "Users",
+      "logout": "Log out"
+    },
+    "dashboard": {
+      "welcome": "Welcome, {name}",
+      "venues": "Venues",
+      "role": "Role",
+      "superadmin": "Platform administrator",
+      "client": "Client"
+    }
+  }
+}

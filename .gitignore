@@ -1,0 +1,25 @@
+node_modules/
+dist/
+.next/
+out/
+
+# environment — never commit secrets
+.env
+.env.*
+!.env.example
+
+# runtime data
+uploads/
+*.log
+
+# baze / backupi — NIKAD na GitHub (sadrže podatke i hešove lozinki)
+backups/
+*.sql
+*.tar.gz
+
+# PM2 runtime
+.pm2/
+
+# misc
+.DS_Store
+tsconfig.tsbuildinfo
