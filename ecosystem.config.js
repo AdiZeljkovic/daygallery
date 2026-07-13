@@ -27,8 +27,10 @@ module.exports = {
     {
       name: 'daygallery-web',
       cwd: './frontend',
-      script: 'node_modules/next/dist/bin/next',
-      args: 'start -p 3005',
+      // pokreće `npm run start` (→ next start -p 3005); npm sam nađe hoistovani next
+      script: 'npm',
+      args: 'run start',
+      interpreter: 'none',
       env: {
         NODE_ENV: 'production',
       },
