@@ -414,6 +414,7 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
                 items={category.items}
                 currency={menu.currency}
                 primary={primary}
+                compact={category.kind === 'drink'}
                 onAdd={(item) =>
                   cart.add(slug, {
                     itemId: item.id,
@@ -599,6 +600,7 @@ function MenuSection({
   currency,
   primary,
   highlight,
+  compact,
   onAdd,
 }: {
   id: string;
@@ -608,10 +610,12 @@ function MenuSection({
   currency: string;
   primary: string;
   highlight?: boolean;
+  compact?: boolean; // pića → kompaktne kartice sa malom sličicom
   onAdd: (item: MenuItemRow) => void;
 }) {
-  const withImages = items.filter((i) => i.imagePath);
-  const withoutImages = items.filter((i) => !i.imagePath);
+  // Za pića: sve kompaktno (mala sličica). Za hranu: velike kartice za sa slikom.
+  const withImages = compact ? [] : items.filter((i) => i.imagePath);
+  const compactItems = compact ? items : items.filter((i) => !i.imagePath);
 
   return (
     <section id={id} data-menu-section className="scroll-mt-36 pt-10">
@@ -626,7 +630,7 @@ function MenuSection({
         />
       </div>
 
-      {/* Kartice sa slikama — veliki vizuali */}
+      {/* Kartice sa slikama — veliki vizuali (samo hrana) */}
       {withImages.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {withImages.map((item) => (
@@ -635,10 +639,10 @@ function MenuSection({
         </div>
       )}
 
-      {/* Kompaktne kartice bez slika */}
-      {withoutImages.length > 0 && (
+      {/* Kompaktne kartice (pića uvijek; hrana bez slike) */}
+      {compactItems.length > 0 && (
         <div className={`grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 ${withImages.length > 0 ? 'mt-4' : ''}`}>
-          {withoutImages.map((item) => (
+          {compactItems.map((item) => (
             <CompactCard key={item.id} item={item} currency={currency} primary={primary} onAdd={() => onAdd(item)} />
           ))}
         </div>
@@ -769,8 +773,17 @@ function CompactCard({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-30px' }}
       transition={{ duration: 0.4 }}
-      className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.045] p-4 backdrop-blur-sm transition-colors hover:border-white/16"
+      className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.045] p-3 backdrop-blur-sm transition-colors hover:border-white/16"
     >
+      {item.imagePath && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imageUrl(item.imagePath)!}
+          alt={item.name}
+          loading="lazy"
+          className="h-14 w-14 shrink-0 rounded-xl object-cover"
+        />
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <h3 className="truncate text-sm font-semibold">{item.name}</h3>
