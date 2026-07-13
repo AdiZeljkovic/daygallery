@@ -67,65 +67,69 @@ body {
    Ne postavlja pozadinu (radi i sa bg-gold i sa dinamičkom brend
    bojom menija). Bez pomjeranja/skaliranja pod mišem.
    ============================================================ */
-.btn-glossy {
-  position: relative;
-  overflow: hidden;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.4),
-    inset 0 -2px 5px rgba(0, 0, 0, 0.14),
-    0 10px 26px -12px rgba(0, 0, 0, 0.55);
-  transition:
-    box-shadow 0.35s ease,
-    filter 0.35s ease,
-    transform 0.15s ease;
-}
+/* U @layer components da Tailwind utility klase (fixed, absolute, sticky...)
+   imaju prednost nad position:relative — inače .btn-glossy gazi `fixed`
+   na cart baru i on padne u normalni tok umjesto da bude pinovan. */
+@layer components {
+  .btn-glossy {
+    position: relative;
+    overflow: hidden;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.4),
+      inset 0 -2px 5px rgba(0, 0, 0, 0.14),
+      0 10px 26px -12px rgba(0, 0, 0, 0.55);
+    transition:
+      box-shadow 0.35s ease,
+      filter 0.35s ease,
+      transform 0.15s ease;
+  }
 
-/* stalni gornji odsjaj (staklo) */
-.btn-glossy::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 45% 0;
-  border-radius: inherit;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.02));
-  pointer-events: none;
-}
+  /* stalni gornji odsjaj (staklo) */
+  .btn-glossy::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 45% 0;
+    border-radius: inherit;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.02));
+    pointer-events: none;
+  }
 
-/* svjetlosni trak koji pređe preko dugmeta na hover */
-.btn-glossy::after {
-  content: '';
-  position: absolute;
-  top: -30%;
-  bottom: -30%;
-  left: 0;
-  width: 45%;
-  background: linear-gradient(105deg, transparent 20%, rgba(255, 255, 255, 0.5) 50%, transparent 80%);
-  transform: translateX(-150%) skewX(-18deg);
-  pointer-events: none;
-}
+  /* svjetlosni trak koji pređe preko dugmeta na hover */
+  .btn-glossy::after {
+    content: '';
+    position: absolute;
+    top: -30%;
+    bottom: -30%;
+    left: 0;
+    width: 45%;
+    background: linear-gradient(105deg, transparent 20%, rgba(255, 255, 255, 0.5) 50%, transparent 80%);
+    transform: translateX(-150%) skewX(-18deg);
+    pointer-events: none;
+  }
 
-.btn-glossy:hover {
-  filter: brightness(1.07);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    inset 0 -2px 5px rgba(0, 0, 0, 0.14),
-    0 12px 32px -10px rgba(212, 175, 55, 0.45);
-}
+  .btn-glossy:hover {
+    filter: brightness(1.07);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.45),
+      inset 0 -2px 5px rgba(0, 0, 0, 0.14),
+      0 12px 32px -10px rgba(212, 175, 55, 0.45);
+  }
 
-.btn-glossy:hover::after {
-  animation: btn-shine 0.9s ease;
-}
+  .btn-glossy:hover::after {
+    animation: btn-shine 0.9s ease;
+  }
 
-.btn-glossy:active {
-  transform: translateY(1px);
-  filter: brightness(0.98);
-}
+  .btn-glossy:active {
+    filter: brightness(0.98);
+  }
 
-.btn-glossy:disabled {
-  filter: none;
-  box-shadow: none;
-}
-.btn-glossy:disabled::after {
-  display: none;
+  .btn-glossy:disabled {
+    filter: none;
+    box-shadow: none;
+  }
+  .btn-glossy:disabled::after {
+    display: none;
+  }
 }
 
 @keyframes btn-shine {
