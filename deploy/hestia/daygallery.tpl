@@ -14,7 +14,7 @@ server {
 
     # Backend API
     location /api/ {
-        proxy_pass http://127.0.0.1:4000;
+        proxy_pass http://127.0.0.1:4711;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -24,14 +24,14 @@ server {
 
     # Slike
     location /uploads/ {
-        proxy_pass http://127.0.0.1:4000;
+        proxy_pass http://127.0.0.1:4711;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     # Socket.io (WebSocket)
     location /socket.io/ {
-        proxy_pass http://127.0.0.1:4000;
+        proxy_pass http://127.0.0.1:4711;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -43,7 +43,7 @@ server {
 
     # Next.js frontend
     location / {
-        proxy_pass http://127.0.0.1:3005;
+        proxy_pass http://127.0.0.1:3711;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";

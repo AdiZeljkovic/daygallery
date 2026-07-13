@@ -17,6 +17,7 @@ module.exports = {
       script: 'dist/index.js',
       env: {
         NODE_ENV: 'production',
+        // interni port — mora biti slobodan na serveru; postavljen i u backend/.env (API_PORT)
       },
       instances: 1,
       exec_mode: 'fork',
@@ -27,12 +28,13 @@ module.exports = {
     {
       name: 'daygallery-web',
       cwd: './frontend',
-      // pokreće `npm run start` (→ next start -p 3005); npm sam nađe hoistovani next
+      // pokreće `npm run start` (→ next start); npm sam nađe hoistovani next
       script: 'npm',
       args: 'run start',
       interpreter: 'none',
       env: {
         NODE_ENV: 'production',
+        PORT: '3711', // interni port Next servera (nginx proxira ovamo)
       },
       instances: 1,
       exec_mode: 'fork',
