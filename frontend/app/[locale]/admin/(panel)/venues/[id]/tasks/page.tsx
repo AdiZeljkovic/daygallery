@@ -37,6 +37,8 @@ interface StaffMember {
 }
 
 const DAY_NAMES = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'];
+// getDay(): 0=ned … 6=sub — instrumental za "ponavlja se ___"
+const WEEKDAY_ADV = ['nedjeljom', 'ponedjeljkom', 'utorkom', 'srijedom', 'četvrtkom', 'petkom', 'subotom'];
 const MONTHS = [
   'januar', 'februar', 'mart', 'april', 'maj', 'juni',
   'juli', 'august', 'septembar', 'oktobar', 'novembar', 'decembar',
@@ -64,6 +66,7 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
 
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
   const [modal, setModal] = useState<{ date?: string } | null>(null);
+  const [filter, setFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
 
   const { data: user } = useQuery({ queryKey: ['me'], queryFn: authApi.me, retry: false });
   const isWorker = user?.staff?.role === 'waiter' || user?.staff?.role === 'kitchen';
@@ -101,7 +104,8 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
 
   const byDate = useMemo(() => {
     const map = new Map<string, Occurrence[]>();
-    for (const occ of occurrences ?? []) {
+    const src = (occurrences ?? []).filter((o) => filter === 'all' || o.recurrence === filter);
+    for (const occ of src) {
       const list = map.get(occ.date) ?? [];
       list.push(occ);
       map.set(occ.date, list);
@@ -115,7 +119,7 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
       );
     }
     return map;
-  }, [occurrences]);
+  }, [occurrences, filter]);
 
   const weekLabel = `${days[0].getDate()}. ${MONTHS[days[0].getMonth()]} – ${days[6].getDate()}. ${MONTHS[days[6].getMonth()]}`;
 
@@ -154,6 +158,28 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
             Novi zadatak / smjena
           </button>
         )}
+      </div>
+
+      {/* Filter po vrsti ponavljanja */}
+      <div className="mb-4 flex flex-wrap gap-1.5">
+        {([
+          { value: 'all', label: 'Svi' },
+          { value: 'daily', label: 'Dnevni' },
+          { value: 'weekly', label: 'Sedmični' },
+          { value: 'monthly', label: 'Mjesečni' },
+        ] as const).map((f) => (
+          <button
+            key={f.value}
+            onClick={() => setFilter(f.value)}
+            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+              filter === f.value
+                ? 'bg-ink text-cream'
+                : 'bg-ink/5 text-ink/55 hover:bg-ink/10'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {isLoading ? (
@@ -456,6 +482,17 @@ function TaskModal({
               </label>
             )}
           </div>
+
+          {recurrence !== 'none' && (
+            <p className="flex items-center gap-1.5 rounded-lg bg-gold/8 px-3 py-2 text-xs text-ink/60">
+              <Repeat className="h-3.5 w-3.5 shrink-0 text-gold-dark" />
+              {recurrence === 'daily'
+                ? 'Ponavlja se svaki dan.'
+                : recurrence === 'weekly'
+                  ? `Ponavlja se svake sedmice — ${WEEKDAY_ADV[new Date(date + 'T00:00:00').getDay()]}.`
+                  : `Ponavlja se svaki mjesec — ${new Date(date + 'T00:00:00').getDate()}. u mjesecu.`}
+            </p>
+          )}
         </div>
 
         {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
