@@ -49,6 +49,7 @@ eventsRouter.get(
       where: { status: 'pending' },
       orderBy: { uploadedAt: 'asc' },
       include: { event: { select: { id: true, name: true, clientNames: true } } },
+      take: 500, // moderacija u serijama — panel ne mora vući hiljade odjednom
     });
     res.json(images);
   })
@@ -80,6 +81,7 @@ eventsRouter.get(
         _count: { select: { images: true } },
       },
       orderBy: { createdAt: 'desc' },
+      take: 500,
     });
     res.json(events);
   })
@@ -97,6 +99,7 @@ eventsRouter.get(
         images: {
           where: isSuperadmin ? {} : { status: 'approved' },
           orderBy: { uploadedAt: 'desc' },
+          take: 2000, // sigurnosni limit — spriječi da ogromna galerija obori panel
         },
         coverImage: { select: { id: true, thumbPath: true } },
       },

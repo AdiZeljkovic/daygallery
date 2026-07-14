@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { env } from '../config/env.js';
+import { captureError } from '../lib/sentry.js';
 
 /** Baciva greška s HTTP statusom — koristi se u servisima: throw new HttpError(403, '...') */
 export class HttpError extends Error {
@@ -12,7 +13,7 @@ export class HttpError extends Error {
   }
 }
 
-export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
+export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
   if (err instanceof HttpError) {
     return res.status(err.status).json({ error: err.message });
   }
@@ -33,7 +34,14 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return res.status(400).json({ error: 'Previše fajlova u jednom zahtjevu (max 10)' });
   }
 
-  console.error('Unhandled error:', err);
+  // Neočekivana greška → log + Sentry (bez tijela zahtjeva, samo kontekst rute)
+  console.error(`Unhandled error [${req.method} ${req.originalUrl}]:`, err);
+  captureError(err, {
+    method: req.method,
+    path: req.originalUrl,
+    userId: (req as Request & { user?: { id: number } }).user?.id ?? null,
+  });
+
   return res.status(500).json({
     error: 'Greška na serveru',
     ...(env.isProd ? {} : { detail: err instanceof Error ? err.message : String(err) }),

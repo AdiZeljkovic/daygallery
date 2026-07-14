@@ -51,6 +51,7 @@ invitesRouter.get(
         _count: { select: { rsvps: true } },
       },
       orderBy: { createdAt: 'desc' },
+      take: 500,
     });
     res.json(invites);
   })
@@ -79,17 +80,28 @@ invitesRouter.get(
   wrap(async (req, res) => {
     const id = Number(req.params.id);
     await assertInviteOwnership(req, id);
-    const rsvps = await prisma.rsvp.findMany({
-      where: { inviteId: id },
-      orderBy: { createdAt: 'desc' },
-    });
-    const attending = rsvps.filter((r) => r.attending);
+    // Statistika se računa u bazi (ne učitavamo sve redove samo da bismo zbrajali)
+    const [rsvps, attendingAgg, notAttending] = await Promise.all([
+      prisma.rsvp.findMany({
+        where: { inviteId: id },
+        orderBy: { createdAt: 'desc' },
+        take: 1000,
+      }),
+      prisma.rsvp.aggregate({
+        where: { inviteId: id, attending: true },
+        _count: true,
+        _sum: { plusOnes: true },
+      }),
+      prisma.rsvp.count({ where: { inviteId: id, attending: false } }),
+    ]);
+
+    const attendingCount = attendingAgg._count;
     res.json({
       rsvps,
       stats: {
-        attendingCount: attending.length,
-        totalGuests: attending.reduce((n, r) => n + 1 + r.plusOnes, 0),
-        notAttending: rsvps.length - attending.length,
+        attendingCount,
+        totalGuests: attendingCount + (attendingAgg._sum.plusOnes ?? 0),
+        notAttending,
       },
     });
   })

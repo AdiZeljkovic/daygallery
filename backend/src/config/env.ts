@@ -9,6 +9,8 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32, 'JWT_SECRET mora imati najmanje 32 znaka'),
   UPLOADS_DIR: z.string().default('../uploads'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  // Error tracking — opcionalno. Bez DSN-a Sentry je potpuno neaktivan.
+  SENTRY_DSN: z.string().url().optional().or(z.literal('')),
 });
 
 const parsed = envSchema.safeParse(process.env);
