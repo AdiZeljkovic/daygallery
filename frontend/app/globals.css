@@ -12,6 +12,10 @@
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-playfair), ui-serif, Georgia, serif;
+  /* Ugravirani serif monogram set (pozivnice) */
+  --font-cinzel: var(--font-cinzel), ui-serif, Georgia, serif;
+  --font-cormorant: var(--font-cormorant), ui-serif, Georgia, serif;
+  --font-playfair-sc: var(--font-playfair-sc), ui-serif, Georgia, serif;
 
   --shadow-soft: 0 2px 24px rgb(28 27 25 / 0.06);
   --shadow-lifted: 0 12px 40px rgb(28 27 25 / 0.12);
@@ -217,6 +221,61 @@ body {
 }
 .scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+.animate-float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+/* Zlatni foil shimmer preko teksta (imena mladenaca) */
+@keyframes foil-sweep {
+  to {
+    background-position: 200% center;
+  }
+}
+.text-foil {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-gold-dark) 0%,
+    var(--color-gold) 20%,
+    #fff7dd 42%,
+    var(--color-gold-light) 52%,
+    var(--color-gold) 70%,
+    var(--color-gold-dark) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: foil-sweep 6s linear infinite;
+}
+
+/* Suptilan drift čestica (prašina/svjetlost) u openeru */
+@keyframes mote-drift {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  15% {
+    opacity: var(--mote-opacity, 0.5);
+  }
+  85% {
+    opacity: var(--mote-opacity, 0.5);
+  }
+  100% {
+    transform: translateY(-120px) translateX(var(--mote-x, 10px));
+    opacity: 0;
+  }
+}
+
+/* Linija koja se sama iscrta (divider) */
+@keyframes draw-line {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

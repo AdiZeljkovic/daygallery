@@ -358,6 +358,7 @@ publicRouter.get('/invites/:slug', async (req, res, next) => {
         message: true,
         coverImagePath: true,
         weddingDetails: true,
+        design: true,
         schedule: {
           orderBy: { sortOrder: 'asc' },
           select: { time: true, title: true, location: true },

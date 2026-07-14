@@ -12,6 +12,7 @@ import {
   Heart,
   Clock,
   BookHeart,
+  Stamp,
 } from 'lucide-react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { api, ApiError } from '@/lib/api';
@@ -52,8 +53,26 @@ export interface InviteDetail {
     venueAddress?: string;
     venueMaps?: string;
   } | null;
+  design: {
+    sealInitials?: string;
+    sealFont?: SealFont;
+  } | null;
   schedule: { time: string; title: string; location: string | null }[];
 }
+
+type SealFont = 'cinzel' | 'cormorant' | 'playfairSC';
+
+const SEAL_FONT_CLASS: Record<SealFont, string> = {
+  cinzel: 'font-cinzel',
+  cormorant: 'font-cormorant',
+  playfairSC: 'font-playfair-sc',
+};
+
+const SEAL_FONT_OPTIONS: { value: SealFont; label: string }[] = [
+  { value: 'cinzel', label: 'Cinzel — ugravirani (kapiteli)' },
+  { value: 'cormorant', label: 'Cormorant — elegantni serif' },
+  { value: 'playfairSC', label: 'Playfair SC — mala slova' },
+];
 
 export function InviteEditor({ invite }: { invite?: InviteDetail }) {
   const router = useRouter();
@@ -73,6 +92,16 @@ export function InviteEditor({ invite }: { invite?: InviteDetail }) {
   const [coverPath, setCoverPath] = useState(invite?.coverImagePath ?? null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Pečat (opener)
+  const [sealInitials, setSealInitials] = useState(invite?.design?.sealInitials ?? '');
+  const [sealFont, setSealFont] = useState<SealFont>(invite?.design?.sealFont ?? 'cinzel');
+  const derivedInitials = hostNames
+    .split('&')
+    .map((n) => n.trim()[0])
+    .filter(Boolean)
+    .join('');
+  const previewInitials = sealInitials.trim() || derivedInitials || '♥';
 
   const wd = invite?.weddingDetails;
   const [heroEyebrow, setHeroEyebrow] = useState(wd?.heroEyebrow ?? 'Sa radošću vas pozivamo');
@@ -99,6 +128,7 @@ export function InviteEditor({ invite }: { invite?: InviteDetail }) {
         message,
         eventId: eventId ? Number(eventId) : null,
         variant: isWedding ? 'wedding' : 'standard',
+        design: { sealInitials: sealInitials.trim(), sealFont },
         weddingDetails: isWedding
           ? {
               heroEyebrow,
@@ -196,6 +226,56 @@ export function InviteEditor({ invite }: { invite?: InviteDetail }) {
             )}
           </button>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadCover(e.target.files[0])} />
+        </Section>
+
+        {/* Pečat (opener) */}
+        <Section title="Pečat (koverta pri otvaranju)">
+          <p className="mb-4 text-sm text-ink/50">
+            Gost prvo vidi kovertu sa zlatnim pečatom. Upiši inicijale/monogram i izaberi font.
+          </p>
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            {/* Živi pregled */}
+            <div className="flex shrink-0 flex-col items-center gap-2">
+              <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-gold-light via-gold to-gold-dark shadow-lifted">
+                <div className="pointer-events-none absolute inset-0 rounded-full [background:radial-gradient(circle_at_32%_28%,rgba(255,255,255,0.7),transparent_45%)]" />
+                <div className="absolute inset-[7px] rounded-full border border-black/20" />
+                <span className={`relative text-3xl font-bold text-black/80 ${SEAL_FONT_CLASS[sealFont]}`}>
+                  {previewInitials}
+                </span>
+              </div>
+              <span className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-ink/35">
+                <Stamp className="h-3 w-3" /> Pregled
+              </span>
+            </div>
+
+            <div className="flex-1 space-y-3">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-ink/50">Inicijali / monogram</span>
+                <input
+                  placeholder={derivedInitials || 'npr. A&E'}
+                  value={sealInitials}
+                  maxLength={8}
+                  onChange={(e) => setSealInitials(e.target.value)}
+                  className={input}
+                />
+                <span className="mt-1 block text-[11px] text-ink/35">
+                  Ostavi prazno → automatski iz imena ({derivedInitials || '♥'}).
+                </span>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-ink/50">Font pečata</span>
+                <select
+                  value={sealFont}
+                  onChange={(e) => setSealFont(e.target.value as SealFont)}
+                  className={`${input} bg-white`}
+                >
+                  {SEAL_FONT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
         </Section>
 
         {/* Program */}

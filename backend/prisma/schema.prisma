@@ -304,6 +304,8 @@ model Invite {
   coverImagePath String?       @map("cover_image_path") @db.VarChar(255)
   // samo prezentacijski tekstovi (story, venue copy...) — nikad se ne query-a
   weddingDetails Json?         @map("wedding_details")
+  // opener/pečat prilagodba: { sealInitials, sealFont } — vrijedi za sve pozivnice
+  design         Json?         @map("design")
   createdAt      DateTime      @default(now()) @map("created_at")
 
   event    Event?               @relation(fields: [eventId], references: [id], onDelete: SetNull)

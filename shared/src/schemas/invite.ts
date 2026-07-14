@@ -27,6 +27,13 @@ export const weddingDetailsSchema = z.object({
 });
 export type WeddingDetails = z.infer<typeof weddingDetailsSchema>;
 
+/** Opener/pečat prilagodba — vrijedi za sve pozivnice (standard i wedding). */
+export const inviteDesignSchema = z.object({
+  sealInitials: z.string().trim().max(8).optional().or(z.literal('')),
+  sealFont: z.enum(['cinzel', 'cormorant', 'playfairSC']).optional(),
+});
+export type InviteDesign = z.infer<typeof inviteDesignSchema>;
+
 export const createInviteSchema = z.object({
   title: z.string().trim().min(1, 'Naslov je obavezan').max(150),
   hostNames: z.string().trim().min(1, 'Imena su obavezna').max(200),
@@ -37,6 +44,7 @@ export const createInviteSchema = z.object({
   eventId: z.number().int().positive().nullable().optional(),
   variant: z.enum(['standard', 'wedding']).default('standard'),
   weddingDetails: weddingDetailsSchema.nullable().optional(),
+  design: inviteDesignSchema.nullable().optional(),
   schedule: z.array(scheduleItemSchema).max(20).default([]),
 });
 export type CreateInviteInput = z.infer<typeof createInviteSchema>;
