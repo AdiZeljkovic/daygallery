@@ -449,3 +449,33 @@ model PrivateFeedback {
   @@index([venueId])
   @@map("private_feedback")
 }
+
+// Samostalni modul "Recenzije" — pametni Google review linkovi (nezavisni od menija).
+model ReviewCampaign {
+  id              Int      @id @default(autoincrement())
+  slug            String   @unique
+  name            String   @db.VarChar(150)
+  googleReviewUrl String?  @map("google_review_url") @db.VarChar(500)
+  logoPath        String?  @map("logo_path") @db.VarChar(255)
+  gateEnabled     Boolean  @default(true) @map("gate_enabled")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  feedback ReviewCampaignFeedback[]
+
+  @@map("review_campaigns")
+}
+
+model ReviewCampaignFeedback {
+  id         Int      @id @default(autoincrement())
+  campaignId Int      @map("campaign_id")
+  rating     Int      @db.TinyInt
+  name       String?  @db.VarChar(100)
+  contact    String?  @db.VarChar(100)
+  message    String   @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  campaign ReviewCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("review_campaign_feedback")
+}

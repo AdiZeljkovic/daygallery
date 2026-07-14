@@ -18,6 +18,7 @@ import {
   CalendarCheck,
   UserCog,
   ShieldCheck,
+  Star,
   Sun,
   Moon,
   Bell,
@@ -206,6 +207,7 @@ export default function AdminPanelLayout({ children }: { children: React.ReactNo
       { href: '/admin/venues', label: t('venues'), icon: Store },
       { href: '/admin/events', label: 'Galerije', icon: Images },
       { href: '/admin/invites', label: t('invites'), icon: Mail },
+      { href: '/admin/reviews', label: 'Recenzije', icon: Star },
       {
         href: '/admin/moderation',
         label: 'Moderacija',

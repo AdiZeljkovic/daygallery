@@ -17,6 +17,7 @@ import { tablesRouter } from './routes/tables.js';
 import { staffRouter } from './routes/staff.js';
 import { inventoryRouter } from './routes/inventory.js';
 import { tasksRouter } from './routes/tasks.js';
+import { reviewsRouter } from './routes/reviews.js';
 
 export function createApp() {
   const app = express();
@@ -43,6 +44,7 @@ export function createApp() {
   app.use('/api', staffRouter);
   app.use('/api', inventoryRouter);
   app.use('/api', tasksRouter);
+  app.use('/api', reviewsRouter);
   app.use('/api', menusRouter);
   app.use('/api', ordersRouter);
 

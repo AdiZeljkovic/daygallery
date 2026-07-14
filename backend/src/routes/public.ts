@@ -162,6 +162,53 @@ publicRouter.post(
   }
 );
 
+// ===============================================================
+// Samostalne recenzije-kampanje (/r/:slug)
+// ===============================================================
+
+/** Info za javnu recenzija stranicu. */
+publicRouter.get('/reviews/:slug', async (req, res, next) => {
+  try {
+    const campaign = await prisma.reviewCampaign.findUnique({
+      where: { slug: req.params.slug },
+      select: { name: true, logoPath: true, googleReviewUrl: true, gateEnabled: true },
+    });
+    if (!campaign) return res.status(404).json({ error: 'Recenzija nije pronađena' });
+    res.json(campaign);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Privatna žalba za kampanju (ocjena < 4) — sprema se, ne ide javno. */
+publicRouter.post(
+  '/reviews/:slug/feedback',
+  orderLimiter,
+  validate(createFeedbackSchema),
+  async (req, res, next) => {
+    try {
+      const campaign = await prisma.reviewCampaign.findUnique({
+        where: { slug: req.params.slug },
+        select: { id: true },
+      });
+      if (!campaign) return res.status(404).json({ error: 'Recenzija nije pronađena' });
+
+      await prisma.reviewCampaignFeedback.create({
+        data: {
+          campaignId: campaign.id,
+          rating: req.body.rating,
+          name: req.body.name || null,
+          contact: req.body.contact || null,
+          message: req.body.message,
+        },
+      });
+      res.status(201).json({ success: true });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 /** Gost šalje narudžbu — rate-limited, total se računa server-side. */
 publicRouter.post(
   '/venues/:slug/orders',
