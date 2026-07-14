@@ -12,7 +12,6 @@ import {
   Minus,
   Plus,
   CalendarHeart,
-  ChevronDown,
 } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { imageUrl } from '@/lib/menuTypes';
@@ -69,6 +68,17 @@ function deriveInitials(hostNames: string) {
     .map((n) => n.trim()[0])
     .filter(Boolean)
     .join('');
+}
+
+const MONTHS_BS = [
+  'januar', 'februar', 'mart', 'april', 'maj', 'juni',
+  'juli', 'august', 'septembar', 'oktobar', 'novembar', 'decembar',
+];
+function formatBsDate(iso: string, withWeekday = false) {
+  const WD = ['nedjelja', 'ponedjeljak', 'utorak', 'srijeda', 'četvrtak', 'petak', 'subota'];
+  const d = new Date(iso);
+  const base = `${d.getDate()}. ${MONTHS_BS[d.getMonth()]} ${d.getFullYear()}.`;
+  return withWeekday ? `${WD[d.getDay()]}, ${base}` : base;
 }
 
 export default function InvitePage({ params }: { params: Promise<{ slug: string }> }) {
@@ -185,12 +195,7 @@ export default function InvitePage({ params }: { params: Promise<{ slug: string 
 
           {invite.date && (
             <p className="mt-6 text-sm uppercase tracking-[0.28em] opacity-85">
-              {new Date(invite.date).toLocaleDateString('bs-BA', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              })}
+              {formatBsDate(invite.date, true)}
               {invite.time && ` · ${invite.time}h`}
             </p>
           )}
@@ -333,7 +338,7 @@ export default function InvitePage({ params }: { params: Promise<{ slug: string 
 }
 
 // ================================================================
-// Cinematic intro — moderan, "wow" reveal (bez koverte)
+// Premium envelope — koverta je poenta, ali vrhunski izvedena
 // ================================================================
 
 function CinematicIntro({
@@ -342,7 +347,6 @@ function CinematicIntro({
   fontClass,
   eyebrow,
   date,
-  coverImagePath,
   onOpen,
 }: {
   hostNames: string;
@@ -353,50 +357,30 @@ function CinematicIntro({
   coverImagePath: string | null;
   onOpen: () => void;
 }) {
-  const [leaving, setLeaving] = useState(false);
-  const names = hostNames.split('&').map((n) => n.trim()).filter(Boolean);
-  const cover = coverImagePath ? imageUrl(coverImagePath) : null;
+  const [opening, setOpening] = useState(false);
+  const ease = [0.16, 1, 0.3, 1] as const;
 
   const handleOpen = () => {
-    if (leaving) return;
-    setLeaving(true);
-    setTimeout(onOpen, 1100);
+    if (opening) return;
+    setOpening(true);
+    setTimeout(onOpen, 1900);
   };
-
-  const ease = [0.16, 1, 0.3, 1] as const;
 
   return (
     <motion.div
-      exit={{ opacity: 0, scale: 1.08, filter: 'blur(8px)', transition: { duration: 0.9, ease } }}
+      exit={{ opacity: 0, scale: 1.06, filter: 'blur(6px)', transition: { duration: 0.8, ease } }}
       className="fixed inset-0 z-50 flex cursor-pointer flex-col items-center justify-center overflow-hidden bg-[#080604] text-cream"
       onClick={handleOpen}
     >
-      {/* Pozadina: cover full-bleed ili duboki gradient */}
-      {cover ? (
-        <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <motion.img
-            src={cover}
-            alt=""
-            initial={{ scale: 1.2 }}
-            animate={{ scale: leaving ? 1.28 : 1.08 }}
-            transition={{ duration: 12, ease: 'easeOut' }}
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/55 to-black/85" />
-        </>
-      ) : (
-        <div className="absolute inset-0 [background:radial-gradient(circle_at_50%_38%,#241a0c,#0d0906_55%,#050403_100%)]" />
-      )}
-
+      {/* duboka pozadina */}
+      <div className="absolute inset-0 [background:radial-gradient(circle_at_50%_42%,#241a0c,#0d0906_55%,#050403_100%)]" />
       {/* rotirajući zlatni conic glow */}
       <motion.div
         animate={{ rotate: 360 }}
         transition={{ repeat: Infinity, duration: 70, ease: 'linear' }}
-        className="pointer-events-none absolute left-1/2 top-1/2 h-[64rem] w-[64rem] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-50 blur-2xl [background:conic-gradient(from_0deg,transparent,rgba(212,175,55,0.14),transparent_30%,transparent_55%,rgba(212,175,55,0.10),transparent_80%)]"
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[64rem] w-[64rem] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-60 blur-2xl [background:conic-gradient(from_0deg,transparent,rgba(212,175,55,0.16),transparent_30%,transparent_55%,rgba(212,175,55,0.11),transparent_80%)]"
       />
-      <div className="pointer-events-none absolute inset-0 [box-shadow:inset_0_0_340px_120px_rgba(0,0,0,0.7)]" />
-
+      <div className="pointer-events-none absolute inset-0 [box-shadow:inset_0_0_340px_120px_rgba(0,0,0,0.72)]" />
       {/* čestice */}
       <div className="pointer-events-none absolute inset-0">
         {SPARKLES.map((s, i) => (
@@ -414,131 +398,179 @@ function CinematicIntro({
           />
         ))}
       </div>
-
       {/* okvir */}
       <div className="pointer-events-none absolute inset-4 rounded-[1.75rem] border border-gold/15 sm:inset-8" />
 
-      {/* Sadržaj */}
-      <motion.div
-        animate={leaving ? { y: -18, opacity: 0 } : {}}
-        transition={{ duration: 0.8, ease }}
-        className="relative flex flex-col items-center px-6 text-center"
+      {/* eyebrow */}
+      <motion.p
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: opening ? 0 : 0.62, y: 0 }}
+        transition={{ delay: 0.4, duration: 1 }}
+        className="relative mb-10 text-[10px] uppercase tracking-[0.5em] text-gold-light"
       >
-        {/* eyebrow */}
-        <motion.p
-          initial={{ opacity: 0, letterSpacing: '0.6em' }}
-          animate={{ opacity: 0.7, letterSpacing: '0.45em' }}
-          transition={{ delay: 0.3, duration: 1.1 }}
-          className="text-[10px] uppercase text-gold-light"
+        {eyebrow ?? 'Pozivamo vas'}
+      </motion.p>
+
+      {/* KOVERTA */}
+      <motion.div
+        initial={{ opacity: 0, y: 48, scale: 0.86 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 1.1, ease }}
+        className="relative w-[22rem] sm:w-[34rem]"
+        style={{ perspective: 1600 }}
+      >
+        <motion.div
+          animate={opening ? { y: -14, scale: 1.02 } : { y: [0, -8, 0] }}
+          transition={opening ? { duration: 0.7, ease } : { repeat: Infinity, duration: 6, ease: 'easeInOut' }}
+          className="relative [box-shadow:0_60px_120px_-30px_rgba(0,0,0,0.85),0_16px_40px_-12px_rgba(0,0,0,0.6)]"
+          style={{ aspectRatio: '3/2', transformStyle: 'preserve-3d' }}
         >
-          {eyebrow ?? 'Pozivamo vas'}
-        </motion.p>
-
-        {/* Monogram koji se iscrtava */}
-        <div className="relative mt-6 flex h-28 w-28 items-center justify-center sm:h-32 sm:w-32">
-          <svg viewBox="0 0 120 120" className="absolute inset-0 h-full w-full -rotate-90">
-            <defs>
-              <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#e8cd6f" />
-                <stop offset="50%" stopColor="#d4af37" />
-                <stop offset="100%" stopColor="#a8871f" />
-              </linearGradient>
-            </defs>
-            <motion.circle
-              cx="60" cy="60" r="55" fill="none" stroke="url(#ring)" strokeWidth="1.3" strokeLinecap="round"
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 1 }}
-              transition={{ duration: 1.5, ease: 'easeInOut', delay: 0.4 }}
+          <div className="absolute inset-0 overflow-hidden rounded-2xl">
+            {/* champagne papir */}
+            <div className="absolute inset-0 [background:linear-gradient(135deg,#fdf8ee_0%,#f4ecda_52%,#e7dcc2_100%)]" />
+            {/* suptilna tekstura */}
+            <div
+              className="absolute inset-0 opacity-[0.25] mix-blend-multiply"
+              style={{
+                background:
+                  'repeating-linear-gradient(115deg, rgba(120,95,40,0.05) 0 1px, transparent 1px 5px)',
+              }}
             />
-            <motion.circle
-              cx="60" cy="60" r="48" fill="none" stroke="rgba(212,175,55,0.3)" strokeWidth="0.6"
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: 1 }}
-              transition={{ duration: 1.7, ease: 'easeInOut', delay: 0.55 }}
-            />
-          </svg>
-          <motion.span
-            initial={{ opacity: 0, scale: 0.7 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 1.15, duration: 0.7, ease }}
-            className={`relative text-3xl text-gold-light sm:text-4xl ${fontClass}`}
-          >
-            {initials}
-          </motion.span>
-        </div>
+            {/* foil monogram rub na papiru */}
+            <div className="absolute inset-4 rounded-lg border border-gold/25 sm:inset-6" />
 
-        {/* Imena — mask reveal + foil */}
-        <h1 className="mt-8 font-cormorant text-6xl font-semibold leading-[0.95] sm:text-8xl">
-          {names.map((n, i) => (
-            <span key={i}>
-              <span className="block overflow-hidden py-0.5">
-                <motion.span
-                  initial={{ y: '115%' }}
-                  animate={{ y: leaving ? '-115%' : 0 }}
-                  transition={{ delay: leaving ? i * 0.06 : 1.2 + i * 0.22, duration: 0.95, ease }}
-                  className="block text-foil"
-                >
-                  {n}
-                </motion.span>
-              </span>
-              {i < names.length - 1 && (
-                <motion.span
-                  initial={{ opacity: 0, scale: 0.6 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 1.5, duration: 0.6 }}
-                  className="my-1 block font-display text-2xl text-gold sm:text-3xl"
-                >
-                  &amp;
-                </motion.span>
+            {/* donji "V" preklopi — meke sjenke */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  'linear-gradient(126deg, transparent 49.6%, rgba(120,95,40,0.12) 50%, transparent 50.4%), linear-gradient(234deg, transparent 49.6%, rgba(120,95,40,0.12) 50%, transparent 50.4%)',
+              }}
+            />
+            <div
+              className="absolute inset-x-0 bottom-0 h-1/2"
+              style={{
+                clipPath: 'polygon(0 100%, 50% 0, 100% 100%)',
+                background: 'linear-gradient(to top, rgba(150,120,60,0.12), transparent 70%)',
+              }}
+            />
+
+            {/* PISMO koje izlazi (imena + datum) */}
+            <motion.div
+              initial={{ y: 0, opacity: 0 }}
+              animate={opening ? { y: '-64%', opacity: 1, scale: 1.02 } : {}}
+              transition={{ duration: 1, delay: 0.7, ease }}
+              className="absolute inset-x-8 top-5 bottom-5 flex flex-col items-center justify-center rounded-md bg-[#fffdf8] px-4 text-center shadow-[0_4px_20px_rgba(0,0,0,0.14)]"
+            >
+              <p className="text-[8px] uppercase tracking-[0.4em] text-gold-dark/60">Pozivnica</p>
+              <p className={`mt-2 text-3xl leading-tight text-ink/85 sm:text-4xl ${fontClass}`}>
+                {hostNames.split('&').map((n, i, a) => (
+                  <span key={i}>
+                    {n.trim()}
+                    {i < a.length - 1 && <span className="text-gold"> & </span>}
+                  </span>
+                ))}
+              </p>
+              <div className="mx-auto my-2.5 h-px w-12 bg-gold/50" />
+              {date && (
+                <p className="text-[10px] uppercase tracking-[0.28em] text-ink/45">
+                  {formatBsDate(date)}
+                </p>
               )}
-            </span>
-          ))}
-        </h1>
+            </motion.div>
 
-        {/* divider */}
-        <motion.div
-          initial={{ scaleX: 0, opacity: 0 }}
-          animate={{ scaleX: 1, opacity: 1 }}
-          transition={{ delay: 1.9, duration: 1, ease: 'easeInOut' }}
-          className="mt-7 h-px w-44 origin-center bg-gradient-to-r from-transparent via-gold to-transparent"
-        />
+            {/* gornji preklop (3D) */}
+            <motion.div
+              animate={opening ? { rotateX: -178 } : {}}
+              transition={{ duration: 1.1, ease: 'easeInOut' }}
+              style={{ transformOrigin: 'top', transformStyle: 'preserve-3d' }}
+              className="absolute inset-x-0 top-0 z-10 h-1/2"
+            >
+              <div
+                className="h-full w-full"
+                style={{
+                  clipPath: 'polygon(0 0, 100% 0, 50% 100%)',
+                  background: 'linear-gradient(to bottom, #f7f0e1, #ebe0cb)',
+                  boxShadow: 'inset 0 -3px 8px rgba(120,95,40,0.14)',
+                }}
+              />
+            </motion.div>
 
-        {/* datum */}
-        {date && (
-          <motion.p
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 0.85, y: 0 }}
-            transition={{ delay: 2.05, duration: 0.9 }}
-            className="mt-5 text-sm uppercase tracking-[0.3em] text-cream/85"
-          >
-            {new Date(date).toLocaleDateString('bs-BA', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            })}
-          </motion.p>
-        )}
+            {/* shimmer sweep pri otvaranju */}
+            {opening && (
+              <motion.div
+                initial={{ x: '-130%' }}
+                animate={{ x: '130%' }}
+                transition={{ duration: 1.2, delay: 0.6, ease: 'easeInOut' }}
+                className="absolute inset-y-0 z-20 w-1/3 -skew-x-12"
+                style={{
+                  background:
+                    'linear-gradient(105deg, transparent 15%, rgba(255,255,255,0.6) 50%, transparent 85%)',
+                }}
+              />
+            )}
+          </div>
 
-        {/* CTA */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 2.4, duration: 0.8 }}
-          className="mt-12 flex flex-col items-center gap-3"
-        >
+          {/* tanki foil rub koverte */}
+          <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-gold/25" />
+
+          {/* WAX PEČAT */}
           <motion.div
-            animate={{ y: [0, 6, 0] }}
-            transition={{ repeat: Infinity, duration: 2.2, ease: 'easeInOut' }}
-            className="relative flex h-14 w-14 items-center justify-center rounded-full border border-gold/50"
+            animate={
+              opening
+                ? { scale: 0.35, y: -34, opacity: 0, transition: { duration: 0.55, ease: 'easeIn' } }
+                : { scale: [1, 1.045, 1], transition: { repeat: Infinity, duration: 2.8, ease: 'easeInOut' } }
+            }
+            whileHover={opening ? undefined : { scale: 1.06 }}
+            whileTap={opening ? undefined : { scale: 0.93 }}
+            className="absolute left-1/2 top-1/2 z-30 h-[6.5rem] w-[6.5rem] -translate-x-1/2 -translate-y-1/2 sm:h-28 sm:w-28"
           >
-            <span className="absolute inset-0 rounded-full bg-gold/10 blur-md" />
-            <ChevronDown className="relative h-5 w-5 text-gold-light" />
+            <div className="absolute inset-0 rounded-full [box-shadow:0_16px_32px_-8px_rgba(120,80,10,0.65)]" />
+            <div
+              className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full"
+              style={{
+                background:
+                  'radial-gradient(circle at 34% 28%, #f6e39a 0%, #dcb948 34%, #b6902a 70%, #8a6b18 100%)',
+              }}
+            >
+              <div className="absolute inset-[10px] rounded-full [box-shadow:inset_0_2px_4px_rgba(255,247,214,0.6),inset_0_-4px_6px_rgba(90,66,10,0.6)]" />
+              <div className="absolute inset-[10px] rounded-full border border-[#7a5f14]/40" />
+              <div className="pointer-events-none absolute inset-0 rounded-full [background:radial-gradient(circle_at_32%_26%,rgba(255,255,255,0.65),transparent_42%)]" />
+              {/* periodični glint */}
+              {!opening && (
+                <motion.div
+                  initial={{ x: '-120%' }}
+                  animate={{ x: '120%' }}
+                  transition={{ repeat: Infinity, duration: 3.4, ease: 'easeInOut', repeatDelay: 1.6 }}
+                  className="absolute inset-y-0 w-1/2 -skew-x-12 opacity-70"
+                  style={{
+                    background:
+                      'linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.55) 50%, transparent 70%)',
+                  }}
+                />
+              )}
+              <span
+                className={`relative text-[1.9rem] leading-none text-[#5c4713] ${fontClass}`}
+                style={{ textShadow: '0 1px 0 rgba(255,247,220,0.5)' }}
+              >
+                {initials}
+              </span>
+            </div>
           </motion.div>
-          <span className="text-[11px] uppercase tracking-[0.32em] text-cream/50">
-            Dodirni za otvaranje
-          </span>
         </motion.div>
       </motion.div>
+
+      {/* caption */}
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: opening ? 0 : 1 }}
+        transition={{ delay: 1, duration: 0.6 }}
+        className="relative mt-14 flex items-center gap-3 text-[11px] uppercase tracking-[0.32em] text-cream/45"
+      >
+        <span className="h-px w-6 bg-gold/40" />
+        Dodirnite pečat da otvorite
+        <span className="h-px w-6 bg-gold/40" />
+      </motion.p>
     </motion.div>
   );
 }
