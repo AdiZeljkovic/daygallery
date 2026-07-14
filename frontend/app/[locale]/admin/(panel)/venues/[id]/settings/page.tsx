@@ -97,10 +97,10 @@ export default function VenueSettingsPage({ params }: { params: Promise<{ id: st
         credentials: 'include',
         body: form,
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Upload nije uspio');
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Slanje nije uspjelo');
       setPromoPath((await res.json()).promoImagePath);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Upload nije uspio');
+      setError(e instanceof Error ? e.message : 'Slanje nije uspjelo');
     } finally {
       setUploading(false);
     }

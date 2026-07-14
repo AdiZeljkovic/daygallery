@@ -278,12 +278,12 @@ function VenueModal({
         credentials: 'include',
         body: form,
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Upload nije uspio');
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Slanje nije uspjelo');
       const updated = await res.json();
       if (kind === 'logo') setLogoPath(updated.logoPath);
       else setBgPath(updated.theme?.backgroundImagePath ?? null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Upload nije uspio');
+      setError(e instanceof Error ? e.message : 'Slanje nije uspjelo');
     } finally {
       setUploading(null);
     }

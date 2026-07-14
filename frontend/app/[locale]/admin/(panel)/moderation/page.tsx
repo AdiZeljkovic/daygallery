@@ -75,7 +75,7 @@ export default function ModerationPage() {
         <div>
           <h1 className="font-display text-3xl font-bold">Moderacija</h1>
           <p className="mt-1 text-sm text-ink/50">
-            Slike gostiju čekaju tvoje odobrenje — rok je 24 sata od uploada.
+            Slike gostiju čekaju tvoje odobrenje — rok je 24 sata od slanja.
           </p>
         </div>
         {(images?.length ?? 0) > 0 && (

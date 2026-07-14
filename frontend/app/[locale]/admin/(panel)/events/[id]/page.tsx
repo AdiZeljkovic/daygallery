@@ -124,7 +124,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
       a.click();
       URL.revokeObjectURL(a.href);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Download nije uspio');
+      alert(e instanceof Error ? e.message : 'Preuzimanje nije uspjelo');
     } finally {
       setZipLoading(false);
     }
@@ -168,7 +168,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             onClick={() => setQrModal('upload')}
             className="btn-glossy flex items-center gap-2 rounded-full bg-gold px-3.5 py-2 text-sm font-semibold text-neutral-900 transition-colors"
           >
-            <QrCode className="h-4 w-4" /> QR upload
+            <QrCode className="h-4 w-4" /> QR za slanje
           </button>
           <button
             onClick={() => setQrModal('gallery')}
@@ -276,7 +276,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                   )}
                   {event.coverImageId === image.id && (
                     <span className="rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-bold text-gold-dark">
-                      Cover
+                      Naslovna
                     </span>
                   )}
                   {image.inPublicGallery && (
@@ -309,7 +309,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                       className={`h-3.5 w-3.5 ${image.inPublicGallery ? 'fill-gold text-gold' : ''}`}
                     />
                   </IconAction>
-                  <IconAction title="Postavi kao cover" onClick={() => setCover.mutate(image.id)}>
+                  <IconAction title="Postavi kao naslovnu" onClick={() => setCover.mutate(image.id)}>
                     <ImageIcon className="h-3.5 w-3.5" />
                   </IconAction>
                   <IconAction
@@ -341,7 +341,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
       <QrModal
         open={qrModal === 'upload'}
         onClose={() => setQrModal(null)}
-        title={`${event.name} — Upload`}
+        title={`${event.name} — slanje slika`}
         url={`${origin}/g/${event.slug}`}
       />
       <QrModal

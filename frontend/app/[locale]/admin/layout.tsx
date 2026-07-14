@@ -1,4 +1,11 @@
+import { NextIntlClientProvider } from 'next-intl';
+import bsMessages from '@/messages/bs.json';
+
+// Admin panel je interni alat — uvijek na bosanskom, bez obzira na URL locale (/en/…).
 export default function AdminRootLayout({ children }: { children: React.ReactNode }) {
-  // QueryClientProvider je na root [locale] layoutu (components/Providers.tsx)
-  return children;
+  return (
+    <NextIntlClientProvider locale="bs" messages={bsMessages}>
+      {children}
+    </NextIntlClientProvider>
+  );
 }

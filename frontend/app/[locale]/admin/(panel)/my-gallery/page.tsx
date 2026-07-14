@@ -93,7 +93,7 @@ export default function MyGalleryPage() {
       a.click();
       URL.revokeObjectURL(a.href);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Download nije uspio');
+      alert(e instanceof Error ? e.message : 'Preuzimanje nije uspjelo');
     } finally {
       setZipLoading(false);
     }
