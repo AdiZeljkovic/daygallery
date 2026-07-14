@@ -587,6 +587,7 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
         {wheelOpen && (
           <WheelOfFortune
             prizes={featured}
+            fillerNames={menu.categories.flatMap((c) => c.items.map((i) => i.name))}
             percentage={menu.wheelPercentage ?? 0}
             currency={menu.currency}
             primary={primary}
