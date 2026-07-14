@@ -2,16 +2,13 @@
 
 import { use, useRef, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'motion/react';
 import {
-  Gift,
   Star,
   ImagePlus,
   Loader2,
   Check,
   Trash2,
   MessageSquareWarning,
-  Info,
 } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { imageUrl } from '@/lib/menuTypes';
@@ -55,8 +52,6 @@ export default function VenueSettingsPage({ params }: { params: Promise<{ id: st
   // form state
   const [reviewUrl, setReviewUrl] = useState('');
   const [reviewGate, setReviewGate] = useState(false);
-  const [wheelOn, setWheelOn] = useState(false);
-  const [wheelPct, setWheelPct] = useState('');
   const [promoCaption, setPromoCaption] = useState('');
   const [promoPath, setPromoPath] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -68,8 +63,6 @@ export default function VenueSettingsPage({ params }: { params: Promise<{ id: st
     if (!venue) return;
     setReviewUrl(venue.googleReviewUrl ?? '');
     setReviewGate(venue.reviewGateEnabled);
-    setWheelOn(venue.wheelEnabled);
-    setWheelPct(venue.wheelPercentage?.toString() ?? '');
     setPromoCaption(venue.promoCaption ?? '');
     setPromoPath(venue.promoImagePath ?? null);
   }, [venue]);
@@ -81,8 +74,6 @@ export default function VenueSettingsPage({ params }: { params: Promise<{ id: st
         body: JSON.stringify({
           googleReviewUrl: reviewUrl.trim(),
           reviewGateEnabled: reviewGate,
-          wheelEnabled: wheelOn,
-          wheelPercentage: wheelPct ? parseInt(wheelPct) : null,
           promoCaption: promoCaption.trim(),
         }),
       }),
@@ -162,41 +153,6 @@ export default function VenueSettingsPage({ params }: { params: Promise<{ id: st
             </span>
           </span>
         </label>
-      </Section>
-
-      {/* Kolo sreće */}
-      <Section icon={Gift} title="Kolo sreće">
-        <label className="flex cursor-pointer items-center gap-2.5">
-          <input
-            type="checkbox"
-            checked={wheelOn}
-            onChange={(e) => setWheelOn(e.target.checked)}
-            className="h-4 w-4 accent-[#d4af37]"
-          />
-          <span className="text-sm font-medium">Uključi kolo sreće na meniju</span>
-        </label>
-        {wheelOn && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-3 overflow-hidden">
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-ink/50">Popust (%)</span>
-              <input
-                inputMode="numeric"
-                placeholder="npr. 15"
-                value={wheelPct}
-                onChange={(e) => setWheelPct(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                className={`${input} w-28`}
-              />
-            </label>
-            <div className="mt-3 flex items-start gap-2 rounded-lg bg-gold/8 px-3 py-2.5 text-xs text-ink/60">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-dark" />
-              <p>
-                Nagrade su <strong>istaknuti artikli</strong> (zvjezdica na artiklu u Meniju). Gost
-                zavrti kolo i osvoji ovaj popust na nasumičan istaknuti artikal. Ako nemaš istaknutih
-                artikala, kolo se neće prikazati.
-              </p>
-            </div>
-          </motion.div>
-        )}
       </Section>
 
       {/* Promo slika */}
