@@ -311,8 +311,37 @@ model Invite {
   event    Event?               @relation(fields: [eventId], references: [id], onDelete: SetNull)
   schedule InviteScheduleItem[]
   rsvps    Rsvp[]
+  gallery  InviteImage[]
+  wishes   InviteWish[]
 
   @@map("invites")
+}
+
+model InviteImage {
+  id        Int      @id @default(autoincrement())
+  inviteId  Int      @map("invite_id")
+  filePath  String   @map("file_path") @db.VarChar(255)
+  thumbPath String   @map("thumb_path") @db.VarChar(255)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  invite Invite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+
+  @@index([inviteId])
+  @@map("invite_images")
+}
+
+model InviteWish {
+  id        Int      @id @default(autoincrement())
+  inviteId  Int      @map("invite_id")
+  name      String   @db.VarChar(100)
+  message   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  invite Invite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+
+  @@index([inviteId])
+  @@map("invite_wishes")
 }
 
 model InviteScheduleItem {

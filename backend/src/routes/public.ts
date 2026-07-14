@@ -1,5 +1,10 @@
 import { Router } from 'express';
-import { createOrderSchema, createRsvpSchema, createFeedbackSchema } from '@platform/shared';
+import {
+  createOrderSchema,
+  createRsvpSchema,
+  createFeedbackSchema,
+  createWishSchema,
+} from '@platform/shared';
 import { prisma } from '../lib/prisma.js';
 import { validate } from '../middleware/validate.js';
 import { orderLimiter, uploadLimiter } from '../middleware/rateLimit.js';
@@ -363,6 +368,15 @@ publicRouter.get('/invites/:slug', async (req, res, next) => {
           orderBy: { sortOrder: 'asc' },
           select: { time: true, title: true, location: true },
         },
+        gallery: {
+          orderBy: { sortOrder: 'asc' },
+          select: { id: true, filePath: true, thumbPath: true },
+        },
+        wishes: {
+          orderBy: { createdAt: 'desc' },
+          take: 100,
+          select: { id: true, name: true, message: true, createdAt: true },
+        },
       },
     });
     if (!invite) return res.status(404).json({ error: 'Pozivnica nije pronađena' });
@@ -396,6 +410,30 @@ publicRouter.post(
         },
       });
       res.status(201).json({ success: true });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/** Gost ostavlja želju/čestitku (guestbook) — rate-limited. */
+publicRouter.post(
+  '/invites/:slug/wish',
+  orderLimiter,
+  validate(createWishSchema),
+  async (req, res, next) => {
+    try {
+      const invite = await prisma.invite.findUnique({
+        where: { slug: req.params.slug },
+        select: { id: true },
+      });
+      if (!invite) return res.status(404).json({ error: 'Pozivnica nije pronađena' });
+
+      const wish = await prisma.inviteWish.create({
+        data: { inviteId: invite.id, name: req.body.name, message: req.body.message },
+        select: { id: true, name: true, message: true, createdAt: true },
+      });
+      res.status(201).json(wish);
     } catch (err) {
       next(err);
     }

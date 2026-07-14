@@ -53,12 +53,16 @@ export interface InviteDetail {
     venueName?: string;
     venueAddress?: string;
     venueMaps?: string;
+    bride?: { name?: string; parents?: string; note?: string };
+    groom?: { name?: string; parents?: string; note?: string };
   } | null;
   design: {
     sealInitials?: string;
     sealFont?: SealFont;
     musicTrack?: MusicTrack;
   } | null;
+  gallery?: { id: number; thumbPath: string }[];
+  wishes?: { id: number; name: string; message: string; createdAt: string }[];
   schedule: { time: string; title: string; location: string | null }[];
 }
 
@@ -123,6 +127,20 @@ export function InviteEditor({ invite }: { invite?: InviteDetail }) {
   const [venueAddress, setVenueAddress] = useState(wd?.venueAddress ?? '');
   const [venueMaps, setVenueMaps] = useState(wd?.venueMaps ?? '');
 
+  // Par (mladenci)
+  const [brideName, setBrideName] = useState(wd?.bride?.name ?? '');
+  const [brideParents, setBrideParents] = useState(wd?.bride?.parents ?? '');
+  const [brideNote, setBrideNote] = useState(wd?.bride?.note ?? '');
+  const [groomName, setGroomName] = useState(wd?.groom?.name ?? '');
+  const [groomParents, setGroomParents] = useState(wd?.groom?.parents ?? '');
+  const [groomNote, setGroomNote] = useState(wd?.groom?.note ?? '');
+
+  // Galerija + želje
+  const galleryRef = useRef<HTMLInputElement>(null);
+  const [gallery, setGallery] = useState(invite?.gallery ?? []);
+  const [galleryUploading, setGalleryUploading] = useState(false);
+  const [wishes, setWishes] = useState(invite?.wishes ?? []);
+
   const { data: events } = useQuery({
     queryKey: ['events'],
     queryFn: () => api<{ id: number; name: string }[]>('/api/events'),
@@ -149,6 +167,8 @@ export function InviteEditor({ invite }: { invite?: InviteDetail }) {
               venueName,
               venueAddress,
               venueMaps,
+              bride: { name: brideName, parents: brideParents, note: brideNote },
+              groom: { name: groomName, parents: groomParents, note: groomNote },
             }
           : null,
         schedule: schedule.filter((s) => s.time.trim() && s.title.trim()),
@@ -179,6 +199,40 @@ export function InviteEditor({ invite }: { invite?: InviteDetail }) {
     } finally {
       setUploading(false);
     }
+  };
+
+  const uploadGallery = async (files: FileList) => {
+    if (!invite) return;
+    setGalleryUploading(true);
+    setError(null);
+    try {
+      for (const file of Array.from(files)) {
+        const form = new FormData();
+        form.append('image', file);
+        const res = await fetch(`${API_URL}/api/invites/${invite.id}/gallery`, {
+          method: 'POST',
+          credentials: 'include',
+          body: form,
+        });
+        if (!res.ok) throw new Error((await res.json()).error ?? 'Slanje nije uspjelo');
+        const img = await res.json();
+        setGallery((g) => [...g, { id: img.id, thumbPath: img.thumbPath }]);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Slanje nije uspjelo');
+    } finally {
+      setGalleryUploading(false);
+    }
+  };
+
+  const removeGalleryImage = async (imageId: number) => {
+    await api(`/api/invites/images/${imageId}`, { method: 'DELETE' });
+    setGallery((g) => g.filter((x) => x.id !== imageId));
+  };
+
+  const removeWish = async (wishId: number) => {
+    await api(`/api/invites/wishes/${wishId}`, { method: 'DELETE' });
+    setWishes((w) => w.filter((x) => x.id !== wishId));
   };
 
   const input = 'w-full rounded-lg border border-ink/12 px-3 py-2 text-sm outline-none transition-colors focus:border-gold';
@@ -306,6 +360,63 @@ export function InviteEditor({ invite }: { invite?: InviteDetail }) {
           </select>
         </Section>
 
+        {/* Galerija */}
+        <Section
+          title="Galerija"
+          action={
+            invite && (
+              <button
+                onClick={() => galleryRef.current?.click()}
+                disabled={galleryUploading}
+                className="flex items-center gap-1 rounded-lg bg-gold/10 px-2.5 py-1.5 text-xs font-medium text-gold-dark transition-colors hover:bg-gold/20 disabled:opacity-50"
+              >
+                {galleryUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Dodaj slike
+              </button>
+            )
+          }
+        >
+          {!invite ? (
+            <p className="text-sm text-ink/35">Galerija se dodaje nakon prvog spremanja.</p>
+          ) : gallery.length === 0 ? (
+            <p className="text-sm text-ink/35">Nema slika u galeriji.</p>
+          ) : (
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {gallery.map((img) => (
+                <div key={img.id} className="group relative aspect-square overflow-hidden rounded-lg border border-ink/8">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={imageUrl(img.thumbPath)!} alt="" className="h-full w-full object-cover" />
+                  <button
+                    onClick={() => removeGalleryImage(img.id)}
+                    className="absolute right-1 top-1 rounded-md bg-black/60 p-1 text-white opacity-0 transition-opacity hover:bg-red-500 group-hover:opacity-100"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <input ref={galleryRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => e.target.files?.length && uploadGallery(e.target.files)} />
+        </Section>
+
+        {/* Želje gostiju */}
+        {invite && wishes.length > 0 && (
+          <Section title={`Želje gostiju (${wishes.length})`}>
+            <div className="space-y-2">
+              {wishes.map((w) => (
+                <div key={w.id} className="flex items-start justify-between gap-3 rounded-xl border border-ink/8 p-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">{w.name}</p>
+                    <p className="mt-0.5 text-sm text-ink/60">{w.message}</p>
+                  </div>
+                  <button onClick={() => removeWish(w.id)} className="shrink-0 rounded-lg p-1.5 text-ink/30 hover:bg-red-50 hover:text-red-500">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
+
         {/* Program */}
         <Section
           title="Program dana"
@@ -357,6 +468,23 @@ export function InviteEditor({ invite }: { invite?: InviteDetail }) {
                 <input placeholder="Naziv lokacije (npr. Hotel Hills)" value={venueName} onChange={(e) => setVenueName(e.target.value)} className={input} />
                 <input placeholder="Adresa" value={venueAddress} onChange={(e) => setVenueAddress(e.target.value)} className={input} />
                 <input placeholder="Google Maps link" value={venueMaps} onChange={(e) => setVenueMaps(e.target.value)} className={`${input} sm:col-span-2`} />
+              </div>
+
+              {/* Mladenci */}
+              <p className="pt-1 text-xs font-medium uppercase tracking-wider text-ink/45">Mladenci (kartice)</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2 rounded-xl border border-ink/8 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-gold-dark">Mladenka</p>
+                  <input placeholder="Ime" value={brideName} onChange={(e) => setBrideName(e.target.value)} className={input} />
+                  <input placeholder="Roditelji (npr. kćerka Ahmeta i Fate)" value={brideParents} onChange={(e) => setBrideParents(e.target.value)} className={input} />
+                  <textarea placeholder="Kratak tekst (opcionalno)" value={brideNote} onChange={(e) => setBrideNote(e.target.value)} rows={2} className={`${input} resize-none`} />
+                </div>
+                <div className="space-y-2 rounded-xl border border-ink/8 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-gold-dark">Mladoženja</p>
+                  <input placeholder="Ime" value={groomName} onChange={(e) => setGroomName(e.target.value)} className={input} />
+                  <input placeholder="Roditelji (npr. sin Muje i Zejne)" value={groomParents} onChange={(e) => setGroomParents(e.target.value)} className={input} />
+                  <textarea placeholder="Kratak tekst (opcionalno)" value={groomNote} onChange={(e) => setGroomNote(e.target.value)} rows={2} className={`${input} resize-none`} />
+                </div>
               </div>
 
               <div className="flex items-center justify-between pt-1">

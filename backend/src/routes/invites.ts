@@ -63,7 +63,11 @@ invitesRouter.get(
     await assertInviteOwnership(req, id);
     const invite = await prisma.invite.findUnique({
       where: { id },
-      include: { schedule: { orderBy: { sortOrder: 'asc' } } },
+      include: {
+        schedule: { orderBy: { sortOrder: 'asc' } },
+        gallery: { orderBy: { sortOrder: 'asc' } },
+        wishes: { orderBy: { createdAt: 'desc' }, take: 200 },
+      },
     });
     if (!invite) throw new HttpError(404, 'Pozivnica nije pronađena');
     res.json(invite);
@@ -196,5 +200,57 @@ invitesRouter.post(
       data: { coverImagePath: processed.filePath },
     });
     res.json(invite);
+  })
+);
+
+// ---------------------------------------------------------------
+// Galerija
+// ---------------------------------------------------------------
+invitesRouter.post(
+  '/:id/gallery',
+  imageUpload.single('image'),
+  wrap(async (req, res) => {
+    const id = Number(req.params.id);
+    await assertInviteOwnership(req, id);
+    if (!req.file) throw new HttpError(400, 'Slika nedostaje');
+    const count = await prisma.inviteImage.count({ where: { inviteId: id } });
+    const processed = await processImage(req.file.buffer, `invites/${id}/gallery`, { maxDim: 1800 });
+    const image = await prisma.inviteImage.create({
+      data: {
+        inviteId: id,
+        filePath: processed.filePath,
+        thumbPath: processed.thumbPath,
+        sortOrder: count,
+      },
+    });
+    res.status(201).json(image);
+  })
+);
+
+invitesRouter.delete(
+  '/images/:imageId',
+  wrap(async (req, res) => {
+    const imageId = Number(req.params.imageId);
+    const image = await prisma.inviteImage.findUnique({ where: { id: imageId } });
+    if (!image) throw new HttpError(404, 'Slika nije pronađena');
+    await assertInviteOwnership(req, image.inviteId);
+    await deleteImageFiles(image.filePath, image.thumbPath);
+    await prisma.inviteImage.delete({ where: { id: imageId } });
+    res.json({ success: true });
+  })
+);
+
+// ---------------------------------------------------------------
+// Želje (guestbook) — admin brisanje
+// ---------------------------------------------------------------
+invitesRouter.delete(
+  '/wishes/:wishId',
+  wrap(async (req, res) => {
+    const wishId = Number(req.params.wishId);
+    const wish = await prisma.inviteWish.findUnique({ where: { id: wishId } });
+    if (!wish) throw new HttpError(404, 'Poruka nije pronađena');
+    await assertInviteOwnership(req, wish.inviteId);
+    await prisma.inviteWish.delete({ where: { id: wishId } });
+    res.json({ success: true });
   })
 );

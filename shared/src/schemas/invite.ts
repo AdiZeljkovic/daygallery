@@ -24,8 +24,28 @@ export const weddingDetailsSchema = z.object({
   venueName: z.string().max(150).optional(),
   venueAddress: z.string().max(250).optional(),
   venueMaps: z.string().max(500).optional(),
+  bride: z
+    .object({
+      name: z.string().max(80).optional(),
+      parents: z.string().max(160).optional(),
+      note: z.string().max(400).optional(),
+    })
+    .optional(),
+  groom: z
+    .object({
+      name: z.string().max(80).optional(),
+      parents: z.string().max(160).optional(),
+      note: z.string().max(400).optional(),
+    })
+    .optional(),
 });
 export type WeddingDetails = z.infer<typeof weddingDetailsSchema>;
+
+export const createWishSchema = z.object({
+  name: z.string().trim().min(1, 'Ime je obavezno').max(100),
+  message: z.string().trim().min(1, 'Poruka je obavezna').max(500),
+});
+export type CreateWishInput = z.infer<typeof createWishSchema>;
 
 /** Opener/pečat prilagodba — vrijedi za sve pozivnice (standard i wedding). */
 export const inviteDesignSchema = z.object({

@@ -404,6 +404,14 @@ export default function InvitePage({ params }: { params: Promise<{ slug: string 
         </Reveal>
       </section>
 
+      {/* ===================== ŽELJE ===================== */}
+      <section className="px-6 py-20">
+        <Reveal className="mx-auto max-w-xl">
+          <SectionTitle overline="Knjiga želja" title="Ostavite čestitku" />
+          <Wishes slug={slug} initial={invite.wishes ?? []} guest={guest} />
+        </Reveal>
+      </section>
+
       {/* footer */}
       <footer className="px-6 pb-12 text-center">
         <Ornament className="mb-5" />
@@ -650,6 +658,78 @@ function Gallery({ images }: { images: { id: number; filePath: string; thumbPath
         )}
       </AnimatePresence>
     </>
+  );
+}
+
+// ================================================================
+// Knjiga želja (guestbook)
+// ================================================================
+function Wishes({
+  slug,
+  initial,
+  guest,
+}: {
+  slug: string;
+  initial: { id: number; name: string; message: string; createdAt: string }[];
+  guest: string | null;
+}) {
+  const [list, setList] = useState(initial);
+  const [name, setName] = useState(guest ?? '');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (!name.trim() || !message.trim()) return;
+    setSending(true);
+    setError(null);
+    try {
+      const wish = await api<{ id: number; name: string; message: string; createdAt: string }>(
+        `/api/public/invites/${slug}/wish`,
+        { method: 'POST', body: JSON.stringify({ name: name.trim(), message: message.trim() }) }
+      );
+      setList((l) => [wish, ...l]);
+      setMessage('');
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Slanje nije uspjelo');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const inputStyle = { borderColor: `${C.gold}30`, backgroundColor: 'rgba(255,255,255,0.04)', color: C.ivory } as const;
+  const inputCls = 'w-full rounded-xl border px-4 py-3 text-sm outline-none transition-colors placeholder:opacity-40 focus:border-[#d4af37]';
+
+  return (
+    <div className="mt-10">
+      <div className="space-y-3 rounded-3xl border p-6" style={{ borderColor: `${C.gold}25`, backgroundColor: 'rgba(255,255,255,0.03)' }}>
+        <input placeholder="Vaše ime *" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} style={inputStyle} />
+        <textarea placeholder="Vaša čestitka / želja *" value={message} onChange={(e) => setMessage(e.target.value)} rows={3} className={`${inputCls} resize-none`} style={inputStyle} />
+        {error && <p className="text-sm text-red-400">{error}</p>}
+        <motion.button whileTap={{ scale: 0.98 }} onClick={submit} disabled={!name.trim() || !message.trim() || sending} className="btn-glossy flex w-full items-center justify-center gap-2 rounded-full py-3 font-semibold disabled:opacity-50" style={{ backgroundColor: C.gold, color: '#1a1408' }}>
+          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          Pošalji čestitku
+        </motion.button>
+      </div>
+
+      {list.length > 0 && (
+        <div className="mt-6 space-y-3">
+          <AnimatePresence initial={false}>
+            {list.map((w) => (
+              <motion.div key={w.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border p-4" style={{ borderColor: `${C.gold}20`, backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-cormorant text-sm font-bold" style={{ backgroundColor: `${C.gold}20`, color: C.goldLight }}>
+                    {w.name[0]?.toUpperCase()}
+                  </span>
+                  <p className="font-cormorant text-lg font-bold">{w.name}</p>
+                </div>
+                <p className="mt-2 text-sm leading-relaxed opacity-75">{w.message}</p>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
+    </div>
   );
 }
 
