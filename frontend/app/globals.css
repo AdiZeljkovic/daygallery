@@ -59,6 +59,11 @@ body {
   --color-amber-700: #fcd34d;
   --color-amber-800: #fde68a;
 
+  /* KLJUČNO: body postavlja color van ovog scope-a (izračuna se kao tamna),
+     pa tekst bez eksplicitne text- klase naslijedi tamno. Postavljamo svijetlu
+     boju ovdje da sve unutra nasljeđuje čitljivo na tamnoj podlozi. */
+  color: var(--color-ink);
+
   color-scheme: dark; /* nativni inputi (date, select, color) u tamnom modu */
 }
 
