@@ -250,6 +250,19 @@ body {
   animation: foil-sweep 6s linear infinite;
 }
 
+/* Nježno svjetlucanje čestica (opener) */
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    opacity: var(--tw-op, 0.7);
+    transform: scale(1);
+  }
+}
+
 /* Suptilan drift čestica (prašina/svjetlost) u openeru */
 @keyframes mote-drift {
   0% {
