@@ -124,15 +124,21 @@ export function SeatingManager({
         </button>
       </div>
 
-      {/* Pretraga */}
-      <div className="relative mb-4 max-w-xs">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/30" />
-        <input
-          placeholder="Pretraži sto ili gosta..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-lg border border-ink/12 py-2 pl-9 pr-3 text-sm outline-none focus:border-gold"
-        />
+      {/* Naslov + pretraga */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 font-display text-lg font-bold">
+          <Armchair className="h-5 w-5 text-gold-dark" />
+          Plan stolova i gostiju
+        </h2>
+        <div className="relative w-full max-w-xs">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/30" />
+          <input
+            placeholder="Pretraži sto ili gosta..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-ink/12 py-2 pl-9 pr-3 text-sm outline-none focus:border-gold"
+          />
+        </div>
       </div>
 
       {isLoading ? (
@@ -252,6 +258,16 @@ function TableCard({
         rows={2}
         className="w-full resize-none rounded-lg border border-ink/10 px-3 py-2 text-sm outline-none transition-colors focus:border-gold"
       />
+      {guests.trim() && (
+        <div className="mt-1.5 text-right">
+          <button
+            onClick={() => setGuests('')}
+            className="text-xs font-medium text-ink/40 transition-colors hover:text-red-500"
+          >
+            Očisti sto
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }
