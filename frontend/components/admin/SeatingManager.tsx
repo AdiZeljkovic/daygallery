@@ -157,6 +157,8 @@ export function SeatingManager({
               <TableCard
                 key={table.id}
                 table={table}
+                slug={slug}
+                eventName={eventName}
                 onDelete={() => {
                   if (confirm(`Obrisati sto ${table.label}?`)) deleteTable.mutate(table.id);
                 }}
@@ -179,16 +181,22 @@ export function SeatingManager({
 
 function TableCard({
   table,
+  slug,
+  eventName,
   onDelete,
   onSaved,
 }: {
   table: TableRow;
+  slug: string;
+  eventName: string;
   onDelete: () => void;
   onSaved: () => void;
 }) {
   const [guests, setGuests] = useState(table.guests ?? '');
   const [saved, setSaved] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
   // debounce 700ms — auto-save gostiju
   useEffect(() => {
@@ -226,6 +234,13 @@ function TableCard({
           >
             {table.label}
           </span>
+          <button
+            onClick={() => setQrOpen(true)}
+            title="QR koda ovog stola"
+            className="rounded-lg border border-ink/10 p-1.5 text-ink/45 transition-colors hover:border-gold hover:text-gold-dark"
+          >
+            <QrCode className="h-3.5 w-3.5" />
+          </button>
           {table.type === 'vip' && (
             <span className="flex items-center gap-1 rounded-full bg-gold/12 px-2 py-0.5 text-[10px] font-bold text-gold-dark">
               <Crown className="h-2.5 w-2.5" /> VIP
@@ -268,6 +283,13 @@ function TableCard({
           </button>
         </div>
       )}
+
+      <QrModal
+        open={qrOpen}
+        onClose={() => setQrOpen(false)}
+        title={`${eventName} — Sto ${table.label}`}
+        url={`${origin}/s/${slug}/${table.id}`}
+      />
     </motion.div>
   );
 }
