@@ -5,7 +5,19 @@ import { fileURLToPath } from 'node:url';
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   API_PORT: z.coerce.number().int().positive().default(4000),
-  FRONTEND_ORIGIN: z.string().url(),
+  // Jedan origin ili više odvojenih zarezom (apex + www tokom prelaska domene)
+  FRONTEND_ORIGIN: z
+    .string()
+    .min(1)
+    .refine(
+      (v) =>
+        v
+          .split(',')
+          .map((o) => o.trim())
+          .filter(Boolean)
+          .every((o) => /^https?:\/\/[^\s,]+$/.test(o)),
+      'FRONTEND_ORIGIN mora biti URL (ili lista URL-ova odvojenih zarezom)'
+    ),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET mora imati najmanje 32 znaka'),
   UPLOADS_DIR: z.string().default('../uploads'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),

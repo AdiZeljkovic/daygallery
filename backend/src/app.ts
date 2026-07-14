@@ -27,7 +27,21 @@ export function createApp() {
   app.set('trust proxy', env.isProd ? 1 : false);
 
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-  app.use(cors({ origin: env.FRONTEND_ORIGIN, credentials: true }));
+
+  // FRONTEND_ORIGIN može biti lista (zarezom) — npr. apex + www tokom prelaska domene.
+  const allowedOrigins = env.FRONTEND_ORIGIN.split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  app.use(
+    cors({
+      origin: (origin, cb) => {
+        // bez Origin headera (server-to-server, curl, health) → propusti
+        if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+        cb(new Error('CORS: nedozvoljen origin'));
+      },
+      credentials: true,
+    })
+  );
   app.use(cookieParser());
   app.use(express.json({ limit: '1mb' }));
   app.use(globalLimiter);

@@ -1,0 +1,65 @@
+# HestiaCP nginx proxy template (SSL/HTTPS) — day-gallery.com (PRODUKCIJA)
+# Instalacija: kopiraj u /usr/local/hestia/data/templates/web/nginx/
+#   cp day-gallery.stpl day-gallery.tpl /usr/local/hestia/data/templates/web/nginx/
+# Zatim u Hestia panelu za domenu day-gallery.com odaberi Proxy Template: day-gallery
+# Aktivira se kad uključiš SSL (Let's Encrypt).
+#
+# Portovi: API 4712, WEB 3712 (namjerno različiti od starog vhosta 4711/3711)
+
+server {
+    listen      %ip%:%web_ssl_port% ssl;
+    server_name %domain_idn% %alias_idn%;
+    root        %docroot%;
+
+    ssl_certificate     %ssl_pem%;
+    ssl_certificate_key %ssl_key%;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+
+    # slike gostiju (galerije) znaju biti krupne
+    client_max_body_size 25m;
+
+    access_log  /var/log/nginx/domains/%domain%.log combined;
+    error_log   /var/log/nginx/domains/%domain%.error.log error;
+
+    # Backend API
+    location /api/ {
+        proxy_pass http://127.0.0.1:4712;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Slike (uploads)
+    location /uploads/ {
+        proxy_pass http://127.0.0.1:4712;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Socket.io (WebSocket — live narudžbe)
+    location /socket.io/ {
+        proxy_pass http://127.0.0.1:4712;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 3600s;
+    }
+
+    # Next.js frontend
+    location / {
+        proxy_pass http://127.0.0.1:3712;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
