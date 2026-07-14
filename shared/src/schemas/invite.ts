@@ -31,6 +31,8 @@ export type WeddingDetails = z.infer<typeof weddingDetailsSchema>;
 export const inviteDesignSchema = z.object({
   sealInitials: z.string().trim().max(8).optional().or(z.literal('')),
   sealFont: z.enum(['cinzel', 'cormorant', 'playfairSC']).optional(),
+  theme: z.enum(['emeraldGold']).optional(),
+  musicTrack: z.enum(['none', 'royal-1', 'royal-2', 'royal-3']).optional(),
 });
 export type InviteDesign = z.infer<typeof inviteDesignSchema>;
 

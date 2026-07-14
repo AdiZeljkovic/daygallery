@@ -13,6 +13,7 @@ import {
   Clock,
   BookHeart,
   Stamp,
+  Music2,
 } from 'lucide-react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { api, ApiError } from '@/lib/api';
@@ -56,11 +57,20 @@ export interface InviteDetail {
   design: {
     sealInitials?: string;
     sealFont?: SealFont;
+    musicTrack?: MusicTrack;
   } | null;
   schedule: { time: string; title: string; location: string | null }[];
 }
 
 type SealFont = 'cinzel' | 'cormorant' | 'playfairSC';
+type MusicTrack = 'none' | 'royal-1' | 'royal-2' | 'royal-3';
+
+const MUSIC_OPTIONS: { value: MusicTrack; label: string }[] = [
+  { value: 'none', label: 'Bez muzike' },
+  { value: 'royal-1', label: 'Royal 1' },
+  { value: 'royal-2', label: 'Royal 2' },
+  { value: 'royal-3', label: 'Royal 3' },
+];
 
 const SEAL_FONT_CLASS: Record<SealFont, string> = {
   cinzel: 'font-cinzel',
@@ -96,6 +106,7 @@ export function InviteEditor({ invite }: { invite?: InviteDetail }) {
   // Pečat (opener)
   const [sealInitials, setSealInitials] = useState(invite?.design?.sealInitials ?? '');
   const [sealFont, setSealFont] = useState<SealFont>(invite?.design?.sealFont ?? 'cinzel');
+  const [musicTrack, setMusicTrack] = useState<MusicTrack>(invite?.design?.musicTrack ?? 'none');
   const derivedInitials = hostNames
     .split('&')
     .map((n) => n.trim()[0])
@@ -128,7 +139,7 @@ export function InviteEditor({ invite }: { invite?: InviteDetail }) {
         message,
         eventId: eventId ? Number(eventId) : null,
         variant: isWedding ? 'wedding' : 'standard',
-        design: { sealInitials: sealInitials.trim(), sealFont },
+        design: { sealInitials: sealInitials.trim(), sealFont, musicTrack, theme: 'emeraldGold' },
         weddingDetails: isWedding
           ? {
               heroEyebrow,
@@ -276,6 +287,23 @@ export function InviteEditor({ invite }: { invite?: InviteDetail }) {
               </label>
             </div>
           </div>
+        </Section>
+
+        {/* Muzika */}
+        <Section title="Muzika (royal pozivnica)">
+          <p className="mb-3 flex items-center gap-1.5 text-sm text-ink/50">
+            <Music2 className="h-4 w-4 text-gold-dark" />
+            Pozadinska muzika kreće kad gost klikne "Otvori"; može se utišati.
+          </p>
+          <select
+            value={musicTrack}
+            onChange={(e) => setMusicTrack(e.target.value as MusicTrack)}
+            className={`${input} bg-white`}
+          >
+            {MUSIC_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
         </Section>
 
         {/* Program */}

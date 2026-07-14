@@ -8,6 +8,7 @@ import {
   Cinzel,
   Cormorant_Garamond,
   Playfair_Display_SC,
+  Great_Vibes,
 } from 'next/font/google';
 import { routing } from '@/i18n/routing';
 import { Providers } from '@/components/Providers';
@@ -28,6 +29,8 @@ const playfairSC = Playfair_Display_SC({
   weight: ['400', '700', '900'],
   variable: '--font-playfair-sc',
 });
+// Kaligrafski script (imena para na royal pozivnici)
+const greatVibes = Great_Vibes({ subsets: ['latin'], weight: '400', variable: '--font-script' });
 
 export const metadata: Metadata = {
   title: 'Special Day',
@@ -55,7 +58,7 @@ export default async function LocaleLayout({
   return (
     <html
       lang={locale}
-      className={`${inter.variable} ${playfair.variable} ${cinzel.variable} ${cormorant.variable} ${playfairSC.variable}`}
+      className={`${inter.variable} ${playfair.variable} ${cinzel.variable} ${cormorant.variable} ${playfairSC.variable} ${greatVibes.variable}`}
     >
       <body>
         <NextIntlClientProvider messages={messages}>
