@@ -100,7 +100,7 @@ export function WheelOfFortune({
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 340, damping: 28 }}
-        className="relative w-full max-w-sm rounded-3xl border border-white/10 bg-[#14110d] p-6 text-center text-[#f5f1e8] shadow-lifted"
+        className="relative w-full max-w-md rounded-3xl border border-white/10 bg-[#14110d] p-6 text-center text-[#f5f1e8] shadow-lifted"
         onClick={(e) => e.stopPropagation()}
       >
         {!spinning && (
@@ -125,7 +125,7 @@ export function WheelOfFortune({
               </p>
 
               {/* Točak */}
-              <div className="relative mx-auto mb-7 aspect-square w-64">
+              <div className="relative mx-auto mb-7 aspect-square w-72 sm:w-80">
                 {/* pokazivač */}
                 <div
                   className="absolute left-1/2 top-[-8px] z-20 h-0 w-0 -translate-x-1/2 drop-shadow"
@@ -172,7 +172,7 @@ export function WheelOfFortune({
                       }}
                     >
                       <span
-                        className="line-clamp-2 w-full text-right text-[10px] font-bold leading-tight"
+                        className="line-clamp-2 w-full text-right text-[11px] font-bold leading-tight"
                         style={{ color: '#1a1410' }}
                       >
                         {label}
@@ -182,7 +182,7 @@ export function WheelOfFortune({
 
                   {/* centar */}
                   <div
-                    className="absolute left-1/2 top-1/2 z-10 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-[#14110d]"
+                    className="absolute left-1/2 top-1/2 z-10 h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-[#14110d]"
                     style={{ backgroundColor: primary }}
                   />
                 </motion.div>
