@@ -18,10 +18,13 @@ import {
   MapPin,
   Phone,
   Sparkles,
+  Gift,
 } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { api, ApiError } from '@/lib/api';
 import { useCart } from '@/lib/cart';
+import { WheelOfFortune } from '@/components/menu/WheelOfFortune';
+import { ReviewModal } from '@/components/menu/ReviewModal';
 import {
   type PublicMenu,
   type MenuCategoryRow,
@@ -60,6 +63,10 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
   const [activeSection, setActiveSection] = useState<string>('');
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [wheelOpen, setWheelOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  // osvojena nagrada na kolu sreće (perzistira 1h)
+  const [wheelWon, setWheelWon] = useState<{ itemId: number; pct: number } | null>(null);
   const mainRef = useRef<HTMLDivElement>(null);
 
   // Tema
@@ -71,6 +78,36 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
     () => menu?.categories.flatMap((c) => c.items.filter((i) => i.isFeatured)) ?? [],
     [menu]
   );
+
+  // Kolo sreće: automatski otvori jednom po satu ako je uključeno i ima nagrada
+  useEffect(() => {
+    if (!menu?.wheelEnabled || !menu.wheelPercentage || featured.length === 0) return;
+    // već osvojeno (u zadnjih sat) → učitaj nagradu, ne otvaraj ponovo
+    try {
+      const saved = localStorage.getItem(`sd_wheel_${slug}`);
+      if (saved) {
+        const { itemId, pct, exp } = JSON.parse(saved);
+        if (exp > Date.now()) {
+          setWheelWon({ itemId, pct });
+          return;
+        }
+      }
+    } catch {}
+    const spun = localStorage.getItem(`sd_wheel_spun_${slug}`);
+    if (spun && Date.now() - Number(spun) < 3600_000) return;
+    const t = setTimeout(() => setWheelOpen(true), 1200);
+    return () => clearTimeout(t);
+  }, [menu?.wheelEnabled, menu?.wheelPercentage, featured.length, slug]);
+
+  const handleWheelWin = (item: MenuItemRow) => {
+    const pct = menu?.wheelPercentage ?? 0;
+    setWheelWon({ itemId: item.id, pct });
+    const exp = Date.now() + 3600_000;
+    try {
+      localStorage.setItem(`sd_wheel_${slug}`, JSON.stringify({ itemId: item.id, pct, exp }));
+      localStorage.setItem(`sd_wheel_spun_${slug}`, String(Date.now()));
+    } catch {}
+  };
 
   // Grupe koje stvarno postoje u meniju
   const groups = useMemo(() => {
@@ -262,16 +299,14 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
           {/* Footer sidebara */}
           <div className="space-y-3 border-t border-white/8 px-5 py-5">
             {menu.googleReviewUrl && (
-              <a
-                href={menu.googleReviewUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center justify-center gap-2 rounded-xl border py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors hover:bg-white/5"
+              <button
+                onClick={() => setReviewOpen(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors hover:bg-white/5"
                 style={{ borderColor: `${primary}55`, color: primary }}
               >
                 <Star className="h-3.5 w-3.5" style={{ fill: primary }} />
                 Ostavite recenziju
-              </a>
+              </button>
             )}
             {menu.phone && (
               <a
@@ -386,6 +421,28 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
 
           {/* Sekcije */}
           <div className="mx-auto max-w-[1600px] px-4 pb-32 lg:px-10">
+            {/* Promo baner */}
+            {menu.promoImagePath && !search && (
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="relative mt-6 overflow-hidden rounded-3xl border border-white/10 shadow-lifted"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageUrl(menu.promoImagePath)!}
+                  alt={menu.promoCaption ?? 'Promocija'}
+                  className="max-h-72 w-full object-cover"
+                />
+                {menu.promoCaption && (
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-5">
+                    <p className="font-display text-lg font-bold text-white">{menu.promoCaption}</p>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
             {showFeatured && (
               <MenuSection
                 id="section-featured"
@@ -395,6 +452,7 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
                 currency={menu.currency}
                 primary={primary}
                 highlight
+                wheelWon={wheelWon}
                 onAdd={(item) =>
                   cart.add(slug, {
                     itemId: item.id,
@@ -415,6 +473,7 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
                 currency={menu.currency}
                 primary={primary}
                 compact={category.kind === 'drink'}
+                wheelWon={wheelWon}
                 onAdd={(item) =>
                   cart.add(slug, {
                     itemId: item.id,
@@ -433,16 +492,14 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
             {/* Mobile footer */}
             <footer className="mt-14 border-t border-white/8 pt-6 text-center lg:hidden">
               {menu.googleReviewUrl && (
-                <a
-                  href={menu.googleReviewUrl}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  onClick={() => setReviewOpen(true)}
                   className="mb-4 inline-flex items-center gap-2 rounded-full border px-5 py-2.5 text-xs font-semibold uppercase tracking-wider"
                   style={{ borderColor: `${primary}55`, color: primary }}
                 >
                   <Star className="h-3.5 w-3.5" style={{ fill: primary }} />
                   Ostavite recenziju
-                </a>
+                </button>
               )}
               {menu.phone && (
                 <a href={`tel:${menu.phone}`} className="flex items-center justify-center gap-2 text-sm opacity-50">
@@ -502,11 +559,52 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
         slug={slug}
         currency={menu.currency}
         primary={primary}
+        wheelItemId={wheelWon?.itemId ?? null}
         onSuccess={(publicId) => {
           cart.clear();
           router.push(`/m/${slug}/order/${publicId}`);
         }}
       />
+
+      {/* Kolo sreće — floating trigger (ako uključeno, ima nagrada, još nije osvojeno) */}
+      {menu.wheelEnabled && !!menu.wheelPercentage && featured.length > 0 && !wheelWon && !wheelOpen && (
+        <motion.button
+          initial={{ scale: 0, rotate: -30 }}
+          animate={{ scale: 1, rotate: 0 }}
+          onClick={() => setWheelOpen(true)}
+          className="fixed bottom-24 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full text-[#14110d] shadow-lifted lg:bottom-5"
+          style={{ backgroundColor: primary }}
+          aria-label="Kolo sreće"
+          title="Kolo sreće — osvoji popust!"
+        >
+          <motion.span animate={{ rotate: [0, 360] }} transition={{ repeat: Infinity, duration: 8, ease: 'linear' }}>
+            <Gift className="h-6 w-6" />
+          </motion.span>
+        </motion.button>
+      )}
+
+      <AnimatePresence>
+        {wheelOpen && (
+          <WheelOfFortune
+            prizes={featured}
+            percentage={menu.wheelPercentage ?? 0}
+            currency={menu.currency}
+            primary={primary}
+            onClose={() => setWheelOpen(false)}
+            onWin={handleWheelWin}
+          />
+        )}
+        {reviewOpen && (
+          <ReviewModal
+            slug={slug}
+            name={menu.name}
+            googleReviewUrl={menu.googleReviewUrl}
+            reviewGateEnabled={menu.reviewGateEnabled}
+            primary={primary}
+            onClose={() => setReviewOpen(false)}
+          />
+        )}
+      </AnimatePresence>
     </main>
   );
 }
@@ -601,6 +699,7 @@ function MenuSection({
   primary,
   highlight,
   compact,
+  wheelWon,
   onAdd,
 }: {
   id: string;
@@ -611,11 +710,18 @@ function MenuSection({
   primary: string;
   highlight?: boolean;
   compact?: boolean; // pića → kompaktne kartice sa malom sličicom
+  wheelWon?: { itemId: number; pct: number } | null;
   onAdd: (item: MenuItemRow) => void;
 }) {
-  // Za pića: sve kompaktno (mala sličica). Za hranu: velike kartice za sa slikom.
-  const withImages = compact ? [] : items.filter((i) => i.imagePath);
-  const compactItems = compact ? items : items.filter((i) => !i.imagePath);
+  // primijeni osvojeni popust sa kola sreće na taj artikal (bolji od postojećeg)
+  const withWheel = (i: MenuItemRow): MenuItemRow =>
+    wheelWon && wheelWon.itemId === i.id
+      ? { ...i, discountPercent: Math.max(i.discountPercent ?? 0, wheelWon.pct) }
+      : i;
+  const shown = items.map(withWheel);
+  // Za pića: sve kompaktno (mala sličica). Za hranu: velike kartice sa slikom.
+  const withImages = compact ? [] : shown.filter((i) => i.imagePath);
+  const compactItems = compact ? shown : shown.filter((i) => !i.imagePath);
 
   return (
     <section id={id} data-menu-section className="scroll-mt-36 pt-10">
@@ -938,6 +1044,7 @@ function CheckoutSheet({
   slug,
   currency,
   primary,
+  wheelItemId,
   onSuccess,
 }: {
   open: boolean;
@@ -945,6 +1052,7 @@ function CheckoutSheet({
   slug: string;
   currency: string;
   primary: string;
+  wheelItemId: number | null;
   onSuccess: (publicId: string) => void;
 }) {
   const cart = useCart();
@@ -962,6 +1070,8 @@ function CheckoutSheet({
         body: JSON.stringify({
           tableNumber: tableNumber.trim(),
           note: note.trim() || undefined,
+          // osvojeni artikal na kolu (server primijeni popust samo ako je u korpi i istaknut)
+          wheelItemId: wheelItemId && cart.lines.some((l) => l.itemId === wheelItemId) ? wheelItemId : undefined,
           items: cart.lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity })),
         }),
       });

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrderSchema, createRsvpSchema } from '@platform/shared';
+import { createOrderSchema, createRsvpSchema, createFeedbackSchema } from '@platform/shared';
 import { prisma } from '../lib/prisma.js';
 import { validate } from '../middleware/validate.js';
 import { orderLimiter, uploadLimiter } from '../middleware/rateLimit.js';
@@ -58,6 +58,11 @@ publicRouter.get('/venues/:slug/menu', async (req, res, next) => {
         defaultLang: true,
         theme: true,
         googleReviewUrl: true,
+        reviewGateEnabled: true,
+        wheelEnabled: true,
+        wheelPercentage: true,
+        promoImagePath: true,
+        promoCaption: true,
         isActive: true,
         menus: {
           where: { isActive: true },
@@ -102,6 +107,60 @@ publicRouter.get('/venues/:slug/menu', async (req, res, next) => {
     next(err);
   }
 });
+
+// ===============================================================
+// Recenzije (review funnel) — javno
+// ===============================================================
+
+/** Info za recenzija stranicu/modal. */
+publicRouter.get('/venues/:slug/review', async (req, res, next) => {
+  try {
+    const venue = await prisma.venue.findUnique({
+      where: { slug: req.params.slug },
+      select: {
+        name: true,
+        logoPath: true,
+        googleReviewUrl: true,
+        reviewGateEnabled: true,
+        isActive: true,
+      },
+    });
+    if (!venue || !venue.isActive) return res.status(404).json({ error: 'Objekat nije pronađen' });
+    const { isActive: _ia, ...data } = venue;
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Privatna žalba (ocjena < 4) — sprema se, ne ide javno. Rate-limited. */
+publicRouter.post(
+  '/venues/:slug/feedback',
+  orderLimiter,
+  validate(createFeedbackSchema),
+  async (req, res, next) => {
+    try {
+      const venue = await prisma.venue.findUnique({
+        where: { slug: req.params.slug },
+        select: { id: true },
+      });
+      if (!venue) return res.status(404).json({ error: 'Objekat nije pronađen' });
+
+      await prisma.privateFeedback.create({
+        data: {
+          venueId: venue.id,
+          rating: req.body.rating,
+          name: req.body.name || null,
+          contact: req.body.contact || null,
+          message: req.body.message,
+        },
+      });
+      res.status(201).json({ success: true });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 /** Gost šalje narudžbu — rate-limited, total se računa server-side. */
 publicRouter.post(

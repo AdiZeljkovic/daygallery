@@ -11,6 +11,7 @@ import {
   Boxes,
   CalendarCheck,
   UserCog,
+  Settings,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { api, authApi } from '@/lib/api';
@@ -51,8 +52,13 @@ export default function VenueLayout({
     { href: `/admin/venues/${id}/menu`, label: 'Meni', icon: UtensilsCrossed },
     { href: `/admin/venues/${id}/inventory`, label: 'Inventar', icon: Boxes },
     { href: `/admin/venues/${id}/tasks`, label: 'Zadaci i smjene', icon: CalendarCheck },
-    // Osoblje vide samo šef/manager
-    ...(isWorker ? [] : [{ href: `/admin/venues/${id}/staff`, label: 'Osoblje', icon: UserCog }]),
+    // Osoblje + Postavke vide samo šef/manager
+    ...(isWorker
+      ? []
+      : [
+          { href: `/admin/venues/${id}/staff`, label: 'Osoblje', icon: UserCog },
+          { href: `/admin/venues/${id}/settings`, label: 'Postavke', icon: Settings },
+        ]),
   ];
 
   return (

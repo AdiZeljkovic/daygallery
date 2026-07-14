@@ -26,6 +26,20 @@ venuesRouter.get('/', async (req, res, next) => {
   }
 });
 
+/** Privatne žalbe (recenzije < 4★) — šef i menadžer objekta. */
+venuesRouter.get('/:id/feedback', requireVenueAccess(['manager']), async (req, res, next) => {
+  try {
+    const feedback = await prisma.privateFeedback.findMany({
+      where: { venueId: Number(req.params.id) },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+    res.json(feedback);
+  } catch (err) {
+    next(err);
+  }
+});
+
 venuesRouter.get('/:id', requireVenueAccess(), async (req, res, next) => {
   try {
     const venue = await prisma.venue.findUnique({

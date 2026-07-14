@@ -8,6 +8,8 @@ export const createOrderSchema = z.object({
     .min(1, 'Broj stola je obavezan')
     .max(20, 'Broj stola je predug'),
   note: z.string().trim().max(500).optional(),
+  // Kolo sreće — osvojeni artikal (server provjeri da je istaknut)
+  wheelItemId: z.number().int().positive().nullable().optional(),
   items: z
     .array(
       z.object({

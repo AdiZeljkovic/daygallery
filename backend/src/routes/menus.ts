@@ -329,3 +329,51 @@ menusRouter.post(
     res.json(updated);
   })
 );
+
+// ---------------------------------------------------------------
+// Promo slika (baner na vrhu menija)
+// ---------------------------------------------------------------
+
+menusRouter.post(
+  '/venues/:id/promo',
+  requireVenueAccess(['manager']),
+  imageUpload.single('image'),
+  wrap(async (req, res) => {
+    const venueId = idParam(req);
+    if (!req.file) throw new HttpError(400, 'Slika nedostaje');
+
+    const venue = await prisma.venue.findUnique({
+      where: { id: venueId },
+      select: { promoImagePath: true },
+    });
+    const processed = await processImage(req.file.buffer, `venues/${venueId}/branding`, {
+      maxDim: 1600,
+      quality: 78,
+    });
+    await deleteImageFiles(venue?.promoImagePath, venue?.promoImagePath?.replace('.webp', '_thumb.webp'));
+
+    const updated = await prisma.venue.update({
+      where: { id: venueId },
+      data: { promoImagePath: processed.filePath },
+    });
+    res.json(updated);
+  })
+);
+
+menusRouter.delete(
+  '/venues/:id/promo',
+  requireVenueAccess(['manager']),
+  wrap(async (req, res) => {
+    const venueId = idParam(req);
+    const venue = await prisma.venue.findUnique({
+      where: { id: venueId },
+      select: { promoImagePath: true },
+    });
+    await deleteImageFiles(venue?.promoImagePath, venue?.promoImagePath?.replace('.webp', '_thumb.webp'));
+    const updated = await prisma.venue.update({
+      where: { id: venueId },
+      data: { promoImagePath: null },
+    });
+    res.json(updated);
+  })
+);

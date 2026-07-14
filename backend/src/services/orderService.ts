@@ -50,7 +50,7 @@ export function toOrderDTO(order: {
 export async function createOrder(venueSlug: string, input: CreateOrderInput) {
   const venue = await prisma.venue.findUnique({
     where: { slug: venueSlug },
-    select: { id: true, isActive: true },
+    select: { id: true, isActive: true, wheelEnabled: true, wheelPercentage: true },
   });
   if (!venue || !venue.isActive) throw new HttpError(404, 'Objekat nije pronađen');
 
@@ -61,7 +61,7 @@ export async function createOrder(venueSlug: string, input: CreateOrderInput) {
       isAvailable: true,
       category: { isActive: true, menu: { venueId: venue.id, isActive: true } },
     },
-    select: { id: true, name: true, price: true, discountPercent: true },
+    select: { id: true, name: true, price: true, discountPercent: true, isFeatured: true },
   });
 
   const byId = new Map(dbItems.map((i) => [i.id, i]));
@@ -71,10 +71,23 @@ export async function createOrder(venueSlug: string, input: CreateOrderInput) {
     }
   }
 
+  // Kolo sreće: popust vrijedi samo na osvojeni artikal (mora biti istaknut).
+  const wheelId = input.wheelItemId ?? null;
+  const wheelPct = venue.wheelEnabled ? (venue.wheelPercentage ?? 0) : 0;
+  const wheelItem = wheelId ? byId.get(wheelId) : undefined;
+  const wheelValid = !!wheelItem && wheelItem.isFeatured && wheelPct > 0;
+  let wheelNote: string | null = null;
+
   let total = new D(0);
   const orderItems = input.items.map((line) => {
     const item = byId.get(line.itemId)!;
-    const unit = finalPrice(item.price, item.discountPercent);
+    // efektivni popust = bolji od artiklovog i osvojenog (za osvojeni artikal)
+    let discount = item.discountPercent;
+    if (wheelValid && line.itemId === wheelId) {
+      discount = Math.max(item.discountPercent ?? 0, wheelPct);
+      wheelNote = `🎡 Kolo sreće: -${wheelPct}% na ${item.name}`;
+    }
+    const unit = finalPrice(item.price, discount);
     const lineTotal = unit.mul(line.quantity).toDecimalPlaces(2);
     total = total.add(lineTotal);
     return {
@@ -86,12 +99,14 @@ export async function createOrder(venueSlug: string, input: CreateOrderInput) {
     };
   });
 
+  const note = [input.note?.trim() || null, wheelNote].filter(Boolean).join(' · ') || null;
+
   const order = await prisma.order.create({
     data: {
       publicId: nanoid(14),
       venueId: venue.id,
       tableNumber: input.tableNumber,
-      note: input.note || null,
+      note,
       total,
       items: { create: orderItems },
     },

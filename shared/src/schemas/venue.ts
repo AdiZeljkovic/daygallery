@@ -19,8 +19,19 @@ export const createVenueSchema = z.object({
   theme: venueThemeSchema.partial().optional(),
   googleReviewUrl: z.string().url().max(500).optional().or(z.literal('')),
   reviewGateEnabled: z.boolean().default(false),
+  wheelEnabled: z.boolean().default(false),
+  wheelPercentage: z.coerce.number().int().min(1).max(90).nullable().optional(),
+  promoCaption: z.string().trim().max(200).optional().or(z.literal('')),
 });
 export type CreateVenueInput = z.infer<typeof createVenueSchema>;
+
+export const createFeedbackSchema = z.object({
+  rating: z.coerce.number().int().min(1).max(5),
+  name: z.string().trim().max(100).optional().or(z.literal('')),
+  contact: z.string().trim().max(100).optional().or(z.literal('')),
+  message: z.string().trim().min(1, 'Poruka je obavezna').max(1000),
+});
+export type CreateFeedbackInput = z.infer<typeof createFeedbackSchema>;
 
 export const updateVenueSchema = createVenueSchema.partial().extend({
   isActive: z.boolean().optional(),

@@ -59,6 +59,12 @@ export interface PublicMenu {
   currency: string;
   defaultLang: string;
   theme: VenueTheme | null;
+  googleReviewUrl?: string | null;
+  reviewGateEnabled?: boolean;
+  wheelEnabled?: boolean;
+  wheelPercentage?: number | null;
+  promoImagePath?: string | null;
+  promoCaption?: string | null;
   categories: MenuCategoryRow[];
 }
 
