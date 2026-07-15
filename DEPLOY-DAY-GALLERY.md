@@ -9,7 +9,7 @@ Vodič za prebacivanje platforme na glavnu domenu **day-gallery.com**.
 | **Baza** | **ISTA** (`adizeljkovic_daygallery`) | Svi podaci i `legacyId` (stari QR kodovi!) su već tu. **Ne pravi novu bazu.** |
 | **Portovi** | API `4712`, WEB `3712` | Stari vhost drži 4711/3711 → oba mogu raditi paralelno, siguran cutover. |
 | **PM2** | `dg-api`, `dg-web` | Različita imena od starih (`daygallery-api/web`). |
-| **Putanja** | `/home/adizeljkovic/web/day-gallery.com/app` | Novi Hestia vhost. |
+| **Putanja** | `/home/day-gallery/web/day-gallery.com/app` | Novi Hestia vhost. |
 
 > ⚠️ Stari odštampani QR kodovi (`day-gallery.com/menu?id=<uuid>`) rade **samo** ako koristiš istu bazu — u njoj su `legacyId` vrijednosti koje mapiraju stari ID → novi slug.
 
@@ -18,7 +18,7 @@ Vodič za prebacivanje platforme na glavnu domenu **day-gallery.com**.
 ## 1. Nginx templates (jednom, kao root)
 
 ```bash
-cd /home/adizeljkovic/web/day-gallery.com/app   # nakon koraka 2 ako repo još nije tu
+cd /home/day-gallery/web/day-gallery.com/app   # nakon koraka 2 ako repo još nije tu
 cp deploy/hestia/day-gallery.tpl  /usr/local/hestia/data/templates/web/nginx/
 cp deploy/hestia/day-gallery.stpl /usr/local/hestia/data/templates/web/nginx/
 ```
@@ -32,7 +32,7 @@ Zatim u **Hestia panelu** → Web → `day-gallery.com` → Edit:
 ## 2. Kod na server
 
 ```bash
-cd /home/adizeljkovic/web/day-gallery.com
+cd /home/day-gallery/web/day-gallery.com
 git clone https://github.com/AdiZeljkovic/daygallery.git app
 cd app
 npm ci
@@ -43,10 +43,10 @@ npm ci
 ## 3. Slike (uploads) — prekopiraj iz starog vhosta
 
 ```bash
-mkdir -p /home/adizeljkovic/web/day-gallery.com/uploads
+mkdir -p /home/day-gallery/web/day-gallery.com/uploads
 rsync -a --info=progress2 \
   /home/adizeljkovic/web/daygallery.adizeljkovic.com/app/uploads/ \
-  /home/adizeljkovic/web/day-gallery.com/uploads/
+  /home/day-gallery/web/day-gallery.com/uploads/
 ```
 
 > Uradi ovo **neposredno prije cutovera** da ne izgubiš slike uploadane u međuvremenu.
@@ -57,7 +57,7 @@ rsync -a --info=progress2 \
 
 **Backend:**
 ```bash
-cd /home/adizeljkovic/web/day-gallery.com/app
+cd /home/day-gallery/web/day-gallery.com/app
 cp backend/.env.day-gallery.example backend/.env
 nano backend/.env
 ```
@@ -77,7 +77,7 @@ cp frontend/.env.day-gallery.example frontend/.env.production
 ## 5. Build i pokretanje
 
 ```bash
-cd /home/adizeljkovic/web/day-gallery.com/app
+cd /home/day-gallery/web/day-gallery.com/app
 
 cd backend && npx prisma generate && npx prisma db push && cd ..
 
@@ -154,7 +154,7 @@ Stari vhost `daygallery.adizeljkovic.com` možeš ostaviti kao rezervu ili obris
 ## Naredni update-i (nakon prve instalacije)
 
 ```bash
-cd /home/adizeljkovic/web/day-gallery.com/app
+cd /home/day-gallery/web/day-gallery.com/app
 bash deploy/deploy-day-gallery.sh
 ```
 

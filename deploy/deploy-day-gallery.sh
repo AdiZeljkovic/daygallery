@@ -2,7 +2,7 @@
 # ============================================================
 # Update produkcije na day-gallery.com (NAKON prve instalacije).
 # Pokreni iz korijena repoa:
-#   cd /home/adizeljkovic/web/day-gallery.com/app && bash deploy/deploy-day-gallery.sh
+#   cd /home/day-gallery/web/day-gallery.com/app && bash deploy/deploy-day-gallery.sh
 #
 # Prva instalacija → prati DEPLOY-DAY-GALLERY.md
 # ============================================================
