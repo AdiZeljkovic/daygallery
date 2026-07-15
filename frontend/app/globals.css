@@ -209,6 +209,12 @@ body {
   -webkit-text-stroke: 1.5px rgba(212, 175, 55, 0.28);
 }
 
+/* Suptilna ivory outline — elegantnije od zlatne za brojeve/ticker */
+.text-outline-soft {
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(244, 240, 230, 0.16);
+}
+
 /* Filmsko zrno preko tamnih sekcija */
 .grain::after {
   content: '';

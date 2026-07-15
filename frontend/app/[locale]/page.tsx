@@ -267,8 +267,7 @@ function Nav() {
             </Link>
             <Link
               href="/admin"
-              className="btn-glossy hidden rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest text-black sm:block"
-              style={{ background: GOLD }}
+              className="hidden rounded-full border border-white/20 px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest opacity-90 transition-colors hover:border-white/50 sm:block"
             >
               {t('admin')}
             </Link>
@@ -339,7 +338,7 @@ function Hero() {
       {/* Aurora pozadina — parallax samo desktop */}
       <motion.div style={isDesktop ? { y: yBg } : undefined} className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
         <div
-          className="absolute -top-1/4 left-1/2 h-[46rem] w-[46rem] -translate-x-1/2 rounded-full opacity-25 blur-[90px] lg:blur-[120px]"
+          className="absolute -top-1/4 left-1/2 h-[46rem] w-[46rem] -translate-x-1/2 rounded-full opacity-[0.16] blur-[90px] lg:blur-[120px]"
           style={{ background: `radial-gradient(circle, ${GOLD}, transparent 65%)` }}
         />
         <div
@@ -367,7 +366,7 @@ function Hero() {
           </span>
         </motion.div>
 
-        <h1 className="font-display font-bold leading-[0.92] tracking-tight" style={{ fontSize: 'clamp(2.8rem, 8.5vw, 8rem)' }}>
+        <h1 className="font-display font-bold leading-[0.94] tracking-tight sm:leading-[0.92]" style={{ fontSize: 'clamp(2.4rem, 8vw, 8rem)' }}>
           {[t('title1'), t('title2')].map((ln, i) => (
             <span key={i} className="block overflow-hidden">
               <motion.span
@@ -420,7 +419,7 @@ function Hero() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.25, duration: 0.8 }}
-          className="mt-14 flex flex-wrap gap-x-12 gap-y-6 border-t border-white/8 pt-8"
+          className="mt-12 flex flex-wrap gap-x-8 gap-y-6 border-t border-white/8 pt-8 sm:mt-14 sm:gap-x-12"
         >
           <Stat value={500} suffix="+" label={t('statEvents')} />
           <Stat value={120000} suffix="+" label={t('statMemories')} />
@@ -464,9 +463,9 @@ function Stat({ value, suffix, label }: { value: number; suffix: string; label: 
   const fmt = n >= 1000 ? `${(n / 1000).toFixed(n >= 100000 ? 0 : 1)}k` : String(n);
   return (
     <div ref={ref}>
-      <div className="font-display text-3xl font-bold sm:text-4xl" style={{ color: GOLD }}>
+      <div className="font-display text-3xl font-bold sm:text-4xl">
         {fmt}
-        {suffix}
+        <span style={{ color: GOLD }}>{suffix}</span>
       </div>
       <div className="mt-1 text-[11px] uppercase tracking-widest opacity-45">{label}</div>
     </div>
@@ -483,7 +482,7 @@ function TickerBand() {
       {row.map((w, i) => (
         <span
           key={i}
-          className={`font-display text-3xl font-bold uppercase tracking-tight sm:text-5xl ${w === '✦' ? '' : 'text-outline-gold'}`}
+          className={`font-display text-3xl font-bold uppercase tracking-tight sm:text-5xl ${w === '✦' ? '' : 'text-outline-soft'}`}
           style={w === '✦' ? { color: GOLD } : undefined}
         >
           {w}
@@ -630,7 +629,7 @@ function ProductRow({
         className={flip ? 'lg:order-2' : ''}
       >
         <div className="flex items-center gap-4">
-          <span className="font-display text-6xl font-bold leading-none text-outline-gold sm:text-7xl">
+          <span className="font-display text-6xl font-bold leading-none text-outline-soft sm:text-7xl">
             0{index}
           </span>
           <span className="flex h-11 w-11 items-center justify-center rounded-full" style={{ background: `${GOLD}22`, color: GOLD }}>
@@ -837,7 +836,7 @@ function HowItWorks() {
               className="relative border-t border-white/10 pt-5"
             >
               <div className="absolute -top-[2px] left-0 h-[2px] w-10" style={{ background: GOLD }} />
-              <div className="font-display text-4xl font-bold text-outline-gold">0{i + 1}</div>
+              <div className="font-display text-4xl font-bold text-outline-soft">0{i + 1}</div>
               <h4 className="mt-3 font-display text-lg font-bold">{s.t}</h4>
               <p className="mt-2 text-sm leading-relaxed opacity-50">{s.d}</p>
             </motion.div>
@@ -855,8 +854,8 @@ function Numbers() {
   return (
     <section className="relative overflow-hidden px-4 py-24 sm:px-6" style={{ background: '#0d0d0e' }}>
       <div
-        className="pointer-events-none absolute inset-0 opacity-20"
-        style={{ background: `radial-gradient(circle at 50% 120%, ${GOLD}, transparent 60%)` }}
+        className="pointer-events-none absolute inset-0 opacity-[0.10]"
+        style={{ background: `radial-gradient(circle at 50% 120%, ${GOLD}, transparent 55%)` }}
       />
       <div className="relative mx-auto grid max-w-5xl gap-10 text-center sm:grid-cols-3">
         <BigNum value={500} suffix="+" label={t('statEvents')} />
@@ -886,11 +885,11 @@ function BigNum({ value, suffix, label, small }: { value: number; suffix: string
   const fmt = n >= 1000 ? `${(n / 1000).toFixed(0)}k` : String(n);
   return (
     <div ref={ref}>
-      <div className="font-display font-bold leading-none" style={{ color: GOLD, fontSize: 'clamp(3rem, 8vw, 6rem)' }}>
+      <div className="font-display font-bold leading-none" style={{ fontSize: 'clamp(2.6rem, 7.5vw, 5.5rem)' }}>
         {fmt}
-        {suffix}
+        <span style={{ color: GOLD }}>{suffix}</span>
       </div>
-      <div className={`mx-auto mt-3 ${small ? 'max-w-[16rem] text-xs' : 'text-sm'} uppercase tracking-widest opacity-50`}>
+      <div className={`mx-auto mt-3 ${small ? 'max-w-[16rem] text-xs' : 'text-sm'} uppercase tracking-widest opacity-45`}>
         {label}
       </div>
     </div>
@@ -1078,7 +1077,7 @@ function FinalCta() {
     <footer id="kontakt" ref={ref} className="relative overflow-hidden px-4 pt-24 sm:px-6 sm:pt-36">
       <motion.div style={isDesktop ? { y: yGlow } : undefined} className="pointer-events-none absolute inset-x-0 bottom-0 h-[30rem]">
         <div
-          className="absolute bottom-0 left-1/2 h-[30rem] w-[50rem] -translate-x-1/2 rounded-full opacity-25 blur-[120px]"
+          className="absolute bottom-0 left-1/2 h-[30rem] w-[50rem] -translate-x-1/2 rounded-full opacity-[0.14] blur-[110px]"
           style={{ background: `radial-gradient(circle, ${GOLD}, transparent 65%)` }}
         />
       </motion.div>
@@ -1143,9 +1142,9 @@ function SectionHead({
       className={center ? 'text-center' : ''}
     >
       <div className={`flex items-center gap-3 ${center ? 'justify-center' : ''}`}>
-        <span className="font-mono text-xs font-bold" style={{ color: GOLD }}>{index}</span>
-        <span className="h-px w-8" style={{ background: GOLD }} />
-        <span className="text-[11px] font-semibold uppercase tracking-[0.28em] opacity-60">{overline}</span>
+        <span className="font-mono text-xs font-bold text-white/35">{index}</span>
+        <span className="h-px w-8" style={{ background: `${GOLD}99` }} />
+        <span className="text-[11px] font-semibold uppercase tracking-[0.28em] opacity-55">{overline}</span>
       </div>
       <h2 className="mt-4 max-w-2xl font-display font-bold leading-[1.05]" style={{ fontSize: 'clamp(1.9rem, 5vw, 3.5rem)' }}>
         {title}
