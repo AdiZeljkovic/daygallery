@@ -334,7 +334,7 @@ function Hero() {
   const line = { hidden: { y: '110%' }, show: { y: 0 } };
 
   return (
-    <section id="top" ref={ref} className="relative flex min-h-[100svh] flex-col justify-start px-4 pb-28 pt-32 sm:justify-center sm:px-6 sm:pb-0 sm:pt-28">
+    <section id="top" ref={ref} className="relative flex min-h-[100svh] flex-col justify-center px-4 pb-20 pt-24 sm:px-6 sm:pb-0 sm:pt-28">
       {/* Aurora pozadina — parallax samo desktop */}
       <motion.div style={isDesktop ? { y: yBg } : undefined} className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
         <div
