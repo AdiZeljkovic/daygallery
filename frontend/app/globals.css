@@ -37,13 +37,17 @@ body {
    ============================================================ */
 .admin-dark {
   /* pozadine */
-  --color-cream: #0c0b09;
+  --color-cream: #0b0a08;
   --color-cream-dark: #14110d;
-  --color-white: #161310; /* "bijele" kartice postaju tamni paneli */
+  --color-white: #1a1611; /* "bijele" kartice postaju tamni paneli (malo svjetlije = bolji kontrast) */
 
   /* tekst — ink postaje svijetli */
-  --color-ink: #f5f1e8;
-  --color-ink-soft: #d9d2c3;
+  --color-ink: #f7f3ea;
+  --color-ink-soft: #ddd6c8;
+
+  /* mekše/podignute sjenke izgledaju bolje na tamnoj podlozi */
+  --shadow-soft: 0 1px 0 rgb(255 255 255 / 0.03), 0 6px 24px rgb(0 0 0 / 0.4);
+  --shadow-lifted: 0 20px 50px rgb(0 0 0 / 0.55);
 
   /* zlatna — svjetlija varijanta za čitljivost na tamnom */
   --color-gold-dark: #e0be5a;

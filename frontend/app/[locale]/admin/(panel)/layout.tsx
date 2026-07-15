@@ -49,6 +49,28 @@ interface NavItem {
   badge?: number;
 }
 
+// Naslov stranice iz zadnjeg segmenta putanje (za traku identiteta)
+const SEGMENT_TITLES: Record<string, string> = {
+  dashboard: 'Kontrolna tabla',
+  venues: 'Objekti',
+  events: 'Galerije',
+  invites: 'Pozivnice',
+  tables: 'Stolovi',
+  reviews: 'Recenzije',
+  moderation: 'Moderacija',
+  users: 'Korisnici',
+  orders: 'Narudžbe',
+  menu: 'Meni',
+  inventory: 'Inventar',
+  tasks: 'Zadaci',
+  staff: 'Osoblje',
+  settings: 'Postavke',
+  wheel: 'Kolo sreće',
+  'my-gallery': 'Moja galerija',
+  'staff-home': 'Moj dan',
+  new: 'Novo',
+};
+
 export default function AdminPanelLayout({ children }: { children: React.ReactNode }) {
   const t = useTranslations('admin.nav');
   const router = useRouter();
@@ -265,6 +287,11 @@ export default function AdminPanelLayout({ children }: { children: React.ReactNo
 
   const contextName = user.staff?.venueName ?? (user.role === 'client' ? user.venues?.[0]?.name : null);
 
+  // Naslov trenutne stranice — zadnji smisleni (nenumerički) segment putanje
+  const segs = pathname.split('/').filter(Boolean);
+  const lastLabel = [...segs].reverse().find((s) => isNaN(Number(s)) && s !== 'admin');
+  const pageTitle = SEGMENT_TITLES[lastLabel ?? ''] ?? '';
+
   return (
     <div className={`${theme === 'dark' ? 'admin-dark' : ''} min-h-screen bg-cream`}>
       {/* ============ HEADER ============ */}
@@ -438,6 +465,29 @@ export default function AdminPanelLayout({ children }: { children: React.ReactNo
           )}
         </AnimatePresence>
       </header>
+
+      {/* ============ NASLOV STRANICE ============ */}
+      {pageTitle && (
+        <div className="border-b border-ink/8 bg-cream-dark/40">
+          <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-5 sm:px-6">
+            <span className="h-9 w-1 rounded-full bg-gold" />
+            <div>
+              <motion.h1
+                key={pageTitle}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3 }}
+                className="font-display text-2xl font-bold leading-none"
+              >
+                {pageTitle}
+              </motion.h1>
+              {contextName && (
+                <p className="mt-1 text-xs font-medium text-ink/45">{contextName}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ============ SADRŽAJ ============ */}
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
