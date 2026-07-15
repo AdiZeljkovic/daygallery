@@ -76,10 +76,27 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
   const primary = theme.primaryColor ?? '#d4af37';
   const bgImage = theme.backgroundImagePath ? imageUrl(theme.backgroundImagePath) : null;
 
-  // Postavi početni jezik na defaultLang objekta
+  // Postavi početni jezik: zapamćeni izbor gosta, inače defaultLang objekta
   useEffect(() => {
-    if (menu && !lang) setLang(menu.defaultLang || 'bs');
-  }, [menu, lang]);
+    if (!menu || lang) return;
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(`sd_lang_${slug}`);
+    } catch {}
+    setLang(stored || menu.defaultLang || 'bs');
+  }, [menu, lang, slug]);
+
+  // Prvi put (po lokalu): ako ima >1 jezik i nije birano → prikaži izbor jezika
+  const [langGateChecked, setLangGateChecked] = useState(false);
+  const [showLangGate, setShowLangGate] = useState(false);
+
+  const chooseLang = (l: string) => {
+    setLang(l);
+    try {
+      localStorage.setItem(`sd_lang_${slug}`, l);
+    } catch {}
+    setShowLangGate(false);
+  };
 
   // Jezici za koje POSTOJI barem jedan prevod (+ uvijek osnovni bs)
   const availableLangs = useMemo(() => {
@@ -90,6 +107,16 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
     });
     return MENU_LANGS.filter((l) => set.has(l));
   }, [menu]);
+
+  useEffect(() => {
+    if (!menu || langGateChecked || availableLangs.length <= 1) return;
+    setLangGateChecked(true);
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(`sd_lang_${slug}`);
+    } catch {}
+    if (!stored) setShowLangGate(true);
+  }, [menu, availableLangs, langGateChecked, slug]);
 
   // Kategorije s primijenjenim prevodom za odabrani jezik (fallback na osnovni tekst)
   const tCategories = useMemo(() => {
@@ -222,6 +249,17 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
 
   return (
     <main className="relative min-h-screen bg-[#0c0b09] text-[#f5f1e8]">
+      {/* Prvi put: izbor jezika menija */}
+      <LangGate
+        open={showLangGate}
+        langs={availableLangs}
+        primary={primary}
+        venueName={menu.name}
+        logoPath={menu.logoPath}
+        onPick={chooseLang}
+        onClose={() => chooseLang(menu.defaultLang || 'bs')}
+      />
+
       {/* Fiksna pozadinska slika sa overlay-em */}
       <div className="fixed inset-0 z-0">
         {bgImage ? (
@@ -413,7 +451,7 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
               </div>
 
               {availableLangs.length > 1 && (
-                <LangSelect lang={lang} setLang={setLang} langs={availableLangs} primary={primary} />
+                <LangSelect lang={lang} setLang={chooseLang} langs={availableLangs} primary={primary} />
               )}
             </div>
 
@@ -823,6 +861,79 @@ function PriceTag({ item, currency, primary }: { item: MenuItemRow; currency: st
       </span>
       <span className="text-[10px] font-semibold uppercase opacity-50">{currency}</span>
     </span>
+  );
+}
+
+function LangGate({
+  open,
+  langs,
+  primary,
+  venueName,
+  logoPath,
+  onPick,
+  onClose,
+}: {
+  open: boolean;
+  langs: readonly string[];
+  primary: string;
+  venueName: string;
+  logoPath: string | null;
+  onPick: (l: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0c0b09]/95 px-5 backdrop-blur-md"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.98 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 26 }}
+            className="w-full max-w-sm text-center"
+          >
+            {logoPath ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imageUrl(logoPath)!} alt={venueName} className="mx-auto mb-4 h-16 w-16 rounded-2xl object-cover ring-1 ring-white/10" />
+            ) : (
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl font-display text-2xl font-bold" style={{ background: `${primary}22`, color: primary }}>
+                {venueName[0]}
+              </div>
+            )}
+            <h2 className="font-display text-xl font-bold">{venueName}</h2>
+            <p className="mt-1 text-sm opacity-50">Odaberite jezik · Choose language</p>
+
+            <div className="mt-6 grid grid-cols-2 gap-2.5">
+              {langs.map((l) => {
+                const meta = MENU_LANG_META[l as keyof typeof MENU_LANG_META];
+                return (
+                  <button
+                    key={l}
+                    onClick={() => onPick(l)}
+                    className="flex items-center gap-2.5 rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-left text-sm font-semibold transition-colors hover:border-white/30 hover:bg-white/[0.08]"
+                  >
+                    <span className="text-xl leading-none">{meta.flag}</span>
+                    <span>{meta.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={onClose}
+              className="mt-5 text-xs uppercase tracking-widest opacity-40 transition-opacity hover:opacity-80"
+            >
+              Preskoči
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
