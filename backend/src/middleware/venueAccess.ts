@@ -28,6 +28,16 @@ export async function resolveVenueAccess(
     where: { id: venueId },
     select: { ownerUserId: true },
   });
+  // TEMP DEBUG — ukloniti nakon dijagnostike Dženita narudžbi
+  console.log('[ACCESS-DEBUG]', {
+    userId: user.id,
+    userIdType: typeof user.id,
+    role: user.role,
+    venueId,
+    owner: venue?.ownerUserId,
+    ownerType: typeof venue?.ownerUserId,
+    match: venue?.ownerUserId === user.id,
+  });
   if (!venue) return null;
   if (venue.ownerUserId === user.id) return { venueId, via: 'owner' };
 
