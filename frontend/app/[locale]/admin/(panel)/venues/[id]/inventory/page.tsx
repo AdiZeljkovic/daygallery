@@ -54,7 +54,7 @@ export default function InventoryPage({ params }: { params: Promise<{ id: string
     queryFn: () => api<InventoryRow[]>(`/api/venues/${venueId}/inventory`),
   });
 
-  const items: MenuItemStock[] =
+  const items: (MenuItemStock & { isDrink: boolean })[] =
     menu?.categories.flatMap((c) =>
       c.items.map((i) => ({
         id: i.id,
@@ -63,13 +63,17 @@ export default function InventoryPage({ params }: { params: Promise<{ id: string
         stockQty: (i as unknown as MenuItemStock).stockQty ?? null,
         lowStockAt: (i as unknown as MenuItemStock).lowStockAt ?? null,
         isAvailable: i.isAvailable ?? true,
+        isDrink: c.kind === 'drink',
       }))
     ) ?? [];
 
-  const tracked = items.filter((i) => i.stockQty !== null);
-  const untracked = items.filter((i) => i.stockQty === null);
-  const alerts = tracked.filter(
-    (i) => i.stockQty === 0 || (i.lowStockAt !== null && (i.stockQty ?? 0) <= i.lowStockAt)
+  // Pića: uvijek se prikazuju (šef samo unese stanje). Hrana: opcionalno praćenje.
+  const drinkItems = [...items.filter((i) => i.isDrink)].sort((a, b) => a.name.localeCompare(b.name));
+  const foodItems = items.filter((i) => !i.isDrink);
+  const foodTracked = foodItems.filter((i) => i.stockQty !== null);
+  const foodUntracked = foodItems.filter((i) => i.stockQty === null);
+  const alerts = items.filter(
+    (i) => i.stockQty !== null && (i.stockQty === 0 || (i.lowStockAt !== null && i.stockQty <= i.lowStockAt))
   );
 
   const patchItem = useMutation({
@@ -133,17 +137,41 @@ export default function InventoryPage({ params }: { params: Promise<{ id: string
         )}
       </AnimatePresence>
 
-      {/* Artikli menija */}
-      <section>
+      {/* Pića — uvijek sva, šef samo unese stanje */}
+      {drinkItems.length > 0 && (
+        <section>
+          <div className="mb-4">
+            <h2 className="font-display text-xl font-bold">Pića — stanje</h2>
+            <p className="mt-0.5 text-sm text-ink/50">
+              Sva pića iz menija. Upiši koliko je na stanju — potvrđena narudžba automatski odbija
+              količinu. Na nuli se piće sklanja sa menija dok ne dopuniš.
+            </p>
+          </div>
+          <div className="space-y-2">
+            {drinkItems.map((item) => (
+              <StockRow
+                key={item.id}
+                item={item}
+                readOnly={isWorker}
+                alwaysTrack
+                onPatch={(data) => patchItem.mutate({ itemId: item.id, data })}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Hrana — opcionalno praćenje */}
+      <section className={drinkItems.length > 0 ? 'mt-10' : ''}>
         <div className="mb-4">
-          <h2 className="font-display text-xl font-bold">Stanje artikala</h2>
+          <h2 className="font-display text-xl font-bold">Hrana — stanje</h2>
           <p className="mt-0.5 text-sm text-ink/50">
-            Potvrđena narudžba automatski odbija količinu. Na nuli se artikal sam sklanja sa menija.
+            Za hranu praćenje je opcionalno — uključi ga samo za artikle koje želiš pratiti.
           </p>
         </div>
 
         <div className="space-y-2">
-          {tracked.map((item) => (
+          {foodTracked.map((item) => (
             <StockRow
               key={item.id}
               item={item}
@@ -151,20 +179,20 @@ export default function InventoryPage({ params }: { params: Promise<{ id: string
               onPatch={(data) => patchItem.mutate({ itemId: item.id, data })}
             />
           ))}
-          {tracked.length === 0 && (
+          {foodTracked.length === 0 && (
             <div className="rounded-xl border border-dashed border-ink/15 px-4 py-8 text-center text-sm text-ink/40">
-              Nijedan artikal još ne prati stanje. Klikni "Prati stanje" na artiklu ispod.
+              Nijedan artikal hrane ne prati stanje. Klikni "Prati stanje" na artiklu ispod.
             </div>
           )}
         </div>
 
-        {!isWorker && untracked.length > 0 && (
+        {!isWorker && foodUntracked.length > 0 && (
           <details className="mt-4">
             <summary className="cursor-pointer text-sm font-medium text-ink/50 hover:text-ink">
-              Artikli bez praćenja stanja ({untracked.length}) — klikni za prikaz
+              Hrana bez praćenja stanja ({foodUntracked.length}) — klikni za prikaz
             </summary>
             <div className="mt-3 space-y-2">
-              {untracked.map((item) => (
+              {foodUntracked.map((item) => (
                 <div
                   key={item.id}
                   className="flex items-center gap-3 rounded-xl border border-ink/8 bg-white p-3"
@@ -254,10 +282,12 @@ function StockRow({
   item,
   readOnly,
   onPatch,
+  alwaysTrack = false,
 }: {
   item: MenuItemStock;
   readOnly: boolean;
   onPatch: (data: Record<string, unknown>) => void;
+  alwaysTrack?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [qty, setQty] = useState(String(item.stockQty ?? 0));
@@ -276,7 +306,9 @@ function StockRow({
       <ItemThumb item={item} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{item.name}</p>
-        {zero ? (
+        {item.stockQty === null ? (
+          <p className="text-xs font-medium text-gold-dark">Upiši stanje →</p>
+        ) : zero ? (
           <p className="text-xs font-semibold text-red-500">Nema na stanju</p>
         ) : low ? (
           <p className="text-xs font-semibold text-amber-600">Nisko stanje</p>
@@ -288,7 +320,7 @@ function StockRow({
       </div>
 
       {readOnly ? (
-        <span className="font-display text-xl font-bold">{item.stockQty}</span>
+        <span className="font-display text-xl font-bold">{item.stockQty ?? '—'}</span>
       ) : editing ? (
         <div className="flex items-center gap-2">
           <input
@@ -340,7 +372,7 @@ function StockRow({
             }`}
             title="Klikni za unos tačnog broja i praga"
           >
-            {item.stockQty}
+            {item.stockQty ?? '—'}
           </button>
           <button
             onClick={() =>
@@ -353,13 +385,15 @@ function StockRow({
           >
             <Plus className="h-3.5 w-3.5" />
           </button>
-          <button
-            onClick={() => onPatch({ stockQty: null, lowStockAt: null })}
-            className="ml-1 rounded-lg p-1.5 text-ink/30 transition-colors hover:bg-ink/5 hover:text-ink/60"
-            title="Prestani pratiti stanje"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
+          {!alwaysTrack && (
+            <button
+              onClick={() => onPatch({ stockQty: null, lowStockAt: null })}
+              className="ml-1 rounded-lg p-1.5 text-ink/30 transition-colors hover:bg-ink/5 hover:text-ink/60"
+              title="Prestani pratiti stanje"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       )}
     </motion.div>
