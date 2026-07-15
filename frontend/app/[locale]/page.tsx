@@ -419,7 +419,7 @@ function Hero() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.25, duration: 0.8 }}
-          className="mt-12 flex flex-wrap gap-x-8 gap-y-6 border-t border-white/8 pt-8 sm:mt-14 sm:gap-x-12"
+          className="mt-12 flex flex-wrap justify-center gap-x-8 gap-y-6 border-t border-white/8 pt-8 sm:mt-14 sm:justify-start sm:gap-x-12"
         >
           <Stat value={500} suffix="+" label={t('statEvents')} />
           <Stat value={120000} suffix="+" label={t('statMemories')} />
