@@ -44,7 +44,9 @@ async function assertOwnership(
   }
 
   if (venueId === undefined) throw new HttpError(404, 'Nije pronađeno');
-  const access = await resolveVenueAccess(req.user!, venueId, ['manager']);
+  // artikli se uređuju i iz Inventara (stanje) — dovoljan je bilo koji od ta dva modula
+  const modules: ('menu' | 'inventory')[] = level === 'item' ? ['menu', 'inventory'] : ['menu'];
+  const access = await resolveVenueAccess(req.user!, venueId, ['manager'], modules);
   if (!access) throw new HttpError(403, 'Nemate pristup ovom resursu');
 }
 

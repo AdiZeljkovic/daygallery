@@ -37,7 +37,7 @@ inventoryRouter.get(
 
 inventoryRouter.post(
   '/venues/:id/inventory',
-  requireVenueAccess(['manager']),
+  requireVenueAccess(['manager'], 'id', ['inventory']),
   validate(itemSchema),
   wrap(async (req, res) => {
     const item = await prisma.inventoryItem.create({
@@ -50,7 +50,7 @@ inventoryRouter.post(
 async function assertInventoryManager(req: Request, itemId: number) {
   const item = await prisma.inventoryItem.findUnique({ where: { id: itemId } });
   if (!item) throw new HttpError(404, 'Stavka nije pronađena');
-  const access = await resolveVenueAccess(req.user!, item.venueId, ['manager']);
+  const access = await resolveVenueAccess(req.user!, item.venueId, ['manager'], ['inventory']);
   if (!access) throw new HttpError(403, 'Nemate pristup');
   return item;
 }

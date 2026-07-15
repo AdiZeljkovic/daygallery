@@ -149,7 +149,7 @@ tasksRouter.get(
 /** Kreiranje — samo šef (vlasnik/manager). Radnici dobiju notifikaciju. */
 tasksRouter.post(
   '/venues/:id/tasks',
-  requireVenueAccess(['manager']),
+  requireVenueAccess(['manager'], 'id', ['tasks']),
   validate(taskSchema),
   wrap(async (req, res) => {
     const venueId = Number(req.params.id);
@@ -184,7 +184,7 @@ tasksRouter.post(
 async function assertTaskManager(req: Request, taskId: number) {
   const task = await prisma.task.findUnique({ where: { id: taskId } });
   if (!task) throw new HttpError(404, 'Zadatak nije pronađen');
-  const access = await resolveVenueAccess(req.user!, task.venueId, ['manager']);
+  const access = await resolveVenueAccess(req.user!, task.venueId, ['manager'], ['tasks']);
   if (!access) throw new HttpError(403, 'Nemate pristup');
   return task;
 }

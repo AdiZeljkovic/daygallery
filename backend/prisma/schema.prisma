@@ -32,6 +32,7 @@ model User {
   events     Event[]
   staffOf    VenueStaff?
   tasks      Task[]      @relation("TaskAssignee")
+  groupMemberships StaffGroupMember[]
 
   @@map("users")
 }
@@ -44,6 +45,36 @@ enum StaffRole {
   manager
   waiter
   kitchen
+}
+
+// Grupa naloga za jedan lokal — superadmin je kreira u "Korisnici",
+// dodijeli objektu, i svi članovi dobiju pristup (po roli + per-user permisijama).
+model StaffGroup {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(120)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  members StaffGroupMember[]
+  venues  Venue[]
+
+  @@map("staff_groups")
+}
+
+model StaffGroupMember {
+  id      Int       @id @default(autoincrement())
+  groupId Int       @map("group_id")
+  userId  Int       @map("user_id")
+  role    StaffRole
+  // per-user pristup modulima panela (orders/menu/inventory/tasks/staff);
+  // null = default po roli (manager sve; waiter/kitchen orders+tasks)
+  permissions Json?
+
+  group StaffGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@map("staff_group_members")
 }
 
 model VenueStaff {
@@ -86,10 +117,13 @@ model Venue {
   promoCaption      String?  @map("promo_caption") @db.VarChar(200)
   // Naručivanje uključeno/isključeno — kad je false, meni se vidi ali bez korpe
   orderingEnabled   Boolean  @default(true) @map("ordering_enabled")
+  // Grupa naloga sa pristupom ovom lokalu (Šef/Konobar/Šank&Kuhinja)
+  groupId           Int?     @map("group_id")
   isActive          Boolean  @default(true) @map("is_active")
   createdAt         DateTime @default(now()) @map("created_at")
 
   owner     User              @relation(fields: [ownerUserId], references: [id])
+  group     StaffGroup?       @relation(fields: [groupId], references: [id], onDelete: SetNull)
   menus     Menu[]
   orders    Order[]
   feedback  PrivateFeedback[]
@@ -98,6 +132,7 @@ model Venue {
   inventory InventoryItem[]
 
   @@index([ownerUserId])
+  @@index([groupId])
   @@map("venues")
 }
 

@@ -49,7 +49,7 @@ staffRouter.get(
 /** Šef (vlasnik/manager) dodaje radnika: kreira User(staff) + članstvo. */
 staffRouter.post(
   '/venues/:id/staff',
-  requireVenueAccess(['manager']),
+  requireVenueAccess(['manager'], 'id', ['staff']),
   validate(createStaffSchema),
   wrap(async (req, res) => {
     const venueId = Number(req.params.id);
@@ -88,7 +88,7 @@ staffRouter.patch(
     const staff = await prisma.venueStaff.findUnique({ where: { id: Number(req.params.staffId) } });
     if (!staff) throw new HttpError(404, 'Radnik nije pronađen');
 
-    const access = await resolveVenueAccess(req.user!, staff.venueId, ['manager']);
+    const access = await resolveVenueAccess(req.user!, staff.venueId, ['manager'], ['staff']);
     if (!access) throw new HttpError(403, 'Nemate pristup');
 
     await prisma.user.update({
@@ -106,7 +106,7 @@ staffRouter.delete(
     const staff = await prisma.venueStaff.findUnique({ where: { id: Number(req.params.staffId) } });
     if (!staff) throw new HttpError(404, 'Radnik nije pronađen');
 
-    const access = await resolveVenueAccess(req.user!, staff.venueId, ['manager']);
+    const access = await resolveVenueAccess(req.user!, staff.venueId, ['manager'], ['staff']);
     if (!access) throw new HttpError(403, 'Nemate pristup');
 
     await prisma.user.delete({ where: { id: staff.userId } }); // cascade briše i VenueStaff

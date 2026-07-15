@@ -30,7 +30,7 @@ import {
   X,
   ChevronDown,
 } from 'lucide-react';
-import type { OrderDTO } from '@platform/shared';
+import { DEFAULT_MODULE_PERMS, type OrderDTO, type PanelModule } from '@platform/shared';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { api, authApi, ApiError } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
@@ -242,8 +242,22 @@ export default function AdminPanelLayout({ children }: { children: React.ReactNo
     );
   } else if (user.role === 'staff') {
     nav.push({ href: '/admin/staff-home', label: 'Moj dan', icon: LayoutDashboard });
-    if (myVenueId) {
-      nav.push({ href: `/admin/venues/${myVenueId}/orders`, label: 'Narudžbe', icon: BellRing });
+    if (myVenueId && user.staff) {
+      // stavke po efektivnim permisijama (per-user override ili default po roli)
+      const perms: Record<PanelModule, boolean> = {
+        ...DEFAULT_MODULE_PERMS[user.staff.role],
+        ...(user.staff.permissions ?? {}),
+      };
+      const moduleNav: { mod: PanelModule; href: string; label: string; icon: NavItem['icon'] }[] = [
+        { mod: 'orders', href: `/admin/venues/${myVenueId}/orders`, label: 'Narudžbe', icon: BellRing },
+        { mod: 'menu', href: `/admin/venues/${myVenueId}/menu`, label: 'Meni', icon: UtensilsCrossed },
+        { mod: 'inventory', href: `/admin/venues/${myVenueId}/inventory`, label: 'Inventar', icon: Boxes },
+        { mod: 'tasks', href: `/admin/venues/${myVenueId}/tasks`, label: 'Zadaci', icon: CalendarCheck },
+        { mod: 'staff', href: `/admin/venues/${myVenueId}/staff`, label: 'Osoblje', icon: UserCog },
+      ];
+      for (const item of moduleNav) {
+        if (perms[item.mod]) nav.push({ href: item.href, label: item.label, icon: item.icon });
+      }
     }
   } else {
     if (myVenueId) {

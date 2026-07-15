@@ -4,9 +4,34 @@ export type Role = (typeof ROLES)[number];
 export const STAFF_ROLES = ['manager', 'waiter', 'kitchen'] as const;
 export type StaffRole = (typeof STAFF_ROLES)[number];
 
+/** Moduli admin panela — per-user pristup za članove grupe. */
+export const PANEL_MODULES = ['orders', 'menu', 'inventory', 'tasks', 'staff'] as const;
+export type PanelModule = (typeof PANEL_MODULES)[number];
+
+export const PANEL_MODULE_LABELS: Record<PanelModule, string> = {
+  orders: 'Narudžbe',
+  menu: 'Meni',
+  inventory: 'Inventar',
+  tasks: 'Zadaci',
+  staff: 'Osoblje',
+};
+
+/** Default pristup po roli — kad član grupe nema eksplicitne permisije. */
+export const DEFAULT_MODULE_PERMS: Record<StaffRole, Record<PanelModule, boolean>> = {
+  manager: { orders: true, menu: true, inventory: true, tasks: true, staff: true },
+  waiter: { orders: true, menu: false, inventory: false, tasks: true, staff: false },
+  kitchen: { orders: true, menu: false, inventory: false, tasks: true, staff: false },
+};
+
 /** Odgovor /api/auth/me — uključuje kontekst za role-based UI. */
 export interface MeResponse extends AuthUser {
-  staff: { venueId: number; role: StaffRole; venueName: string } | null;
+  staff: {
+    venueId: number;
+    role: StaffRole;
+    venueName: string;
+    /** efektivni per-modul pristup (za članove grupe); null = default po roli */
+    permissions?: Record<PanelModule, boolean> | null;
+  } | null;
   venues: { id: number; name: string; slug: string }[];
   events: { id: number; name: string; slug: string }[];
 }

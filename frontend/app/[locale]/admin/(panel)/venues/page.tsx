@@ -37,6 +37,7 @@ interface VenueRow {
   theme?: VenueTheme | null;
   googleReviewUrl?: string | null;
   owner?: { id: number; name: string; email: string };
+  group?: { id: number; name: string } | null;
 }
 
 export default function VenuesPage() {
@@ -122,6 +123,7 @@ export default function VenuesPage() {
                   <p className="truncate text-sm text-ink/45">
                     {venue.address}
                     {isSuperadmin && venue.owner && ` · Vlasnik: ${venue.owner.name}`}
+                    {isSuperadmin && venue.group && ` · Grupa: ${venue.group.name}`}
                   </p>
                 </div>
 
@@ -233,6 +235,7 @@ function VenueModal({
   const [phone, setPhone] = useState(venue?.phone ?? '');
   const [currency, setCurrency] = useState(venue?.currency ?? 'BAM');
   const [ownerUserId, setOwnerUserId] = useState<string>(venue?.owner?.id.toString() ?? '');
+  const [groupId, setGroupId] = useState<string>(venue?.group?.id.toString() ?? '');
   const [primaryColor, setPrimaryColor] = useState(venue?.theme?.primaryColor ?? '#d4af37');
   const [googleReviewUrl, setGoogleReviewUrl] = useState(venue?.googleReviewUrl ?? '');
   const [logoPath, setLogoPath] = useState(venue?.logoPath ?? null);
@@ -247,9 +250,14 @@ function VenueModal({
     queryFn: () => api<{ id: number; name: string; email: string; role: string }[]>('/api/users'),
   });
 
+  const { data: groups } = useQuery({
+    queryKey: ['groups'],
+    queryFn: () => api<{ id: number; name: string; members: unknown[] }[]>('/api/groups'),
+  });
+
   const save = useMutation({
-    mutationFn: () => {
-      const body = JSON.stringify({
+    mutationFn: async () => {
+      const base = {
         name,
         address,
         phone,
@@ -257,10 +265,25 @@ function VenueModal({
         googleReviewUrl: googleReviewUrl || '',
         theme: { primaryColor },
         ownerUserId: ownerUserId ? Number(ownerUserId) : undefined,
+      };
+      if (venue) {
+        return api(`/api/venues/${venue.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ ...base, groupId: groupId ? Number(groupId) : null }),
+        });
+      }
+      // create pa (ako je izabrana grupa) odmah dodijeli
+      const created = await api<{ id: number }>('/api/venues', {
+        method: 'POST',
+        body: JSON.stringify(base),
       });
-      return venue
-        ? api(`/api/venues/${venue.id}`, { method: 'PATCH', body })
-        : api('/api/venues', { method: 'POST', body });
+      if (groupId) {
+        await api(`/api/venues/${created.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ groupId: Number(groupId) }),
+        });
+      }
+      return created;
     },
     onSuccess: onSaved,
     onError: (e) => setError(e instanceof ApiError ? e.message : 'Greška'),
@@ -333,6 +356,20 @@ function VenueModal({
                 </option>
               ))}
           </select>
+
+          <div>
+            <select value={groupId} onChange={(e) => setGroupId(e.target.value)} className={`${input} bg-white`}>
+              <option value="">Bez grupe naloga</option>
+              {groups?.map((g) => (
+                <option key={g.id} value={g.id}>
+                  Grupa: {g.name} ({g.members.length} nalog{g.members.length === 1 ? '' : 'a'})
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-ink/40">
+              Svi nalozi iz grupe dobijaju pristup ovom objektu (grupe praviš u „Korisnici").
+            </p>
+          </div>
 
           {/* Branding */}
           <div className="rounded-xl border border-ink/8 p-3">

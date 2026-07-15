@@ -62,17 +62,37 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
         : [],
     ]);
 
-    res.json({
-      id,
-      email,
-      name,
-      role,
-      staff: staff
-        ? { venueId: staff.venueId, role: staff.role, venueName: staff.venue.name }
-        : null,
-      venues,
-      events,
-    });
+    let staffCtx: {
+      venueId: number;
+      role: string;
+      venueName: string;
+      permissions: Record<string, boolean> | null;
+    } | null = staff
+      ? { venueId: staff.venueId, role: staff.role, venueName: staff.venue.name, permissions: null }
+      : null;
+
+    // član grupe (bez klasičnog VenueStaff) — kontekst iz prvog objekta grupe
+    if (role === 'staff' && !staffCtx) {
+      const member = await prisma.staffGroupMember.findFirst({
+        where: { userId: id },
+        include: {
+          group: {
+            include: { venues: { where: { isActive: true }, select: { id: true, name: true }, take: 1 } },
+          },
+        },
+      });
+      const venue = member?.group.venues[0];
+      if (member && venue) {
+        staffCtx = {
+          venueId: venue.id,
+          role: member.role,
+          venueName: venue.name,
+          permissions: (member.permissions as null | Record<string, boolean>) ?? null,
+        };
+      }
+    }
+
+    res.json({ id, email, name, role, staff: staffCtx, venues, events });
   } catch (err) {
     next(err);
   }

@@ -17,7 +17,10 @@ venuesRouter.get('/', async (req, res, next) => {
     const user = req.user!;
     const venues = await prisma.venue.findMany({
       where: user.role === 'superadmin' ? {} : { ownerUserId: user.id },
-      include: { owner: { select: { id: true, name: true, email: true } } },
+      include: {
+        owner: { select: { id: true, name: true, email: true } },
+        group: { select: { id: true, name: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
     res.json(venues);
@@ -47,6 +50,7 @@ venuesRouter.get('/:id', requireVenueAccess(), async (req, res, next) => {
       include: {
         menus: { select: { id: true, name: true, isActive: true } },
         owner: { select: { id: true, name: true, email: true } },
+        group: { select: { id: true, name: true } },
       },
     });
     if (!venue) return res.status(404).json({ error: 'Objekat nije pronađen' });
@@ -76,10 +80,11 @@ venuesRouter.post('/', requireRole('superadmin'), validate(createVenueSchema), a
 
 venuesRouter.patch('/:id', requireOwnership('venue'), validate(updateVenueSchema), async (req, res, next) => {
   try {
-    // vlasnika smije mijenjati samo superadmin
-    const { ownerUserId, theme, ...data } = req.body;
+    // vlasnika i grupu smije mijenjati samo superadmin
+    const { ownerUserId, theme, groupId, ...data } = req.body;
     const patch: Record<string, unknown> =
       req.user!.role === 'superadmin' && ownerUserId ? { ...data, ownerUserId } : data;
+    if (req.user!.role === 'superadmin' && groupId !== undefined) patch.groupId = groupId;
 
     // theme se MERGE-a s postojećim — da upload pozadine (backgroundImagePath) preživi izmjene boja
     if (theme) {

@@ -13,7 +13,19 @@ import {
   ShieldCheck,
   Store,
   Power,
+  UsersRound,
+  ChefHat,
+  Coffee,
+  SlidersHorizontal,
+  RotateCcw,
 } from 'lucide-react';
+import {
+  PANEL_MODULES,
+  PANEL_MODULE_LABELS,
+  DEFAULT_MODULE_PERMS,
+  type PanelModule,
+  type StaffRole,
+} from '@platform/shared';
 import { api, ApiError, authApi } from '@/lib/api';
 
 interface UserRow {
@@ -26,18 +38,53 @@ interface UserRow {
   venues: { id: number; name: string }[];
 }
 
+interface GroupMember {
+  id: number;
+  role: StaffRole;
+  permissions: Record<PanelModule, boolean> | null;
+  userId: number;
+  name: string;
+  email: string;
+  isActive: boolean;
+}
+
+interface GroupRow {
+  id: number;
+  name: string;
+  venues: { id: number; name: string }[];
+  members: GroupMember[];
+}
+
+const ROLE_META: Record<StaffRole, { label: string; icon: typeof ChefHat; tint: string }> = {
+  manager: { label: 'Šef', icon: ShieldCheck, tint: 'bg-gold/12 text-gold-dark' },
+  waiter: { label: 'Konobar', icon: Coffee, tint: 'bg-emerald-50 text-emerald-600' },
+  kitchen: { label: 'Šank & Kuhinja', icon: ChefHat, tint: 'bg-amber-50 text-amber-700' },
+};
+
 export default function UsersPage() {
   const qc = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [passwordUser, setPasswordUser] = useState<UserRow | null>(null);
+  const [groupModal, setGroupModal] = useState(false);
+  const [memberModalGroup, setMemberModalGroup] = useState<GroupRow | null>(null);
 
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: authApi.me, retry: false });
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: () => api<UserRow[]>('/api/users'),
   });
+  const { data: groups } = useQuery({
+    queryKey: ['groups'],
+    queryFn: () => api<GroupRow[]>('/api/groups'),
+  });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['users'] });
+  const invalidateGroups = () => qc.invalidateQueries({ queryKey: ['groups'] });
+
+  const deleteGroup = useMutation({
+    mutationFn: (id: number) => api(`/api/groups/${id}`, { method: 'DELETE' }),
+    onSuccess: invalidateGroups,
+  });
 
   const deleteUser = useMutation({
     mutationFn: (id: number) => api(`/api/users/${id}`, { method: 'DELETE' }),
@@ -55,6 +102,53 @@ export default function UsersPage() {
 
   return (
     <div>
+      {/* ============ GRUPE LOKALA ============ */}
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-3xl font-bold">Grupe lokala</h1>
+          <p className="mt-1 text-sm text-ink/50">
+            Ekipa jednog kafića (Šef / Konobar / Šank & Kuhinja) — grupu dodijeliš objektu u
+            „Objekti → Uredi", a ovdje po članu biraš čemu ima pristup.
+          </p>
+        </div>
+        <button
+          onClick={() => setGroupModal(true)}
+          className="btn-glossy flex items-center gap-2 rounded-full bg-gold px-4 py-2.5 text-sm font-semibold text-neutral-900 transition-colors"
+        >
+          <Plus className="h-4 w-4" />
+          Nova grupa
+        </button>
+      </div>
+
+      <div className="mb-12 space-y-4">
+        {!groups?.length ? (
+          <div className="rounded-2xl border border-dashed border-ink/15 py-12 text-center">
+            <UsersRound className="mx-auto mb-2 h-7 w-7 text-ink/20" />
+            <p className="text-sm text-ink/40">
+              Nema grupa. Kreiraj grupu za kafić, dodaj naloge, pa je dodijeli objektu.
+            </p>
+          </div>
+        ) : (
+          groups.map((group) => (
+            <GroupCard
+              key={group.id}
+              group={group}
+              onAddMember={() => setMemberModalGroup(group)}
+              onDelete={() => {
+                if (
+                  confirm(
+                    `Obrisati grupu "${group.name}"? Objekti gube dodjelu, a nalozi članova (bez drugih veza) se brišu.`
+                  )
+                )
+                  deleteGroup.mutate(group.id);
+              }}
+              onChanged={invalidateGroups}
+            />
+          ))
+        )}
+      </div>
+
+      {/* ============ KORISNICI ============ */}
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold">Korisnici</h1>
@@ -181,12 +275,311 @@ export default function UsersPage() {
           }}
         />
       )}
+      {groupModal && (
+        <GroupModal
+          onClose={() => setGroupModal(false)}
+          onSaved={() => {
+            setGroupModal(false);
+            invalidateGroups();
+          }}
+        />
+      )}
+      {memberModalGroup && (
+        <MemberModal
+          group={memberModalGroup}
+          onClose={() => setMemberModalGroup(null)}
+          onSaved={() => {
+            setMemberModalGroup(null);
+            invalidateGroups();
+          }}
+        />
+      )}
     </div>
   );
 }
 
 const inputCls =
   'w-full rounded-lg border border-ink/12 px-3 py-2 text-sm outline-none transition-colors focus:border-gold';
+
+// ================================================================
+// Grupe lokala
+// ================================================================
+
+function GroupCard({
+  group,
+  onAddMember,
+  onDelete,
+  onChanged,
+}: {
+  group: GroupRow;
+  onAddMember: () => void;
+  onDelete: () => void;
+  onChanged: () => void;
+}) {
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-2xl border border-ink/8 bg-white p-5 shadow-soft"
+    >
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gold/12">
+          <UsersRound className="h-5 w-5 text-gold-dark" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate font-display text-lg font-bold">{group.name}</h3>
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-ink/45">
+            {group.venues.length ? (
+              group.venues.map((v) => (
+                <span key={v.id} className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-600">
+                  <Store className="h-3 w-3" /> {v.name}
+                </span>
+              ))
+            ) : (
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">
+                Nije dodijeljena objektu — uradi to u „Objekti → Uredi"
+              </span>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={onAddMember}
+          className="flex items-center gap-1.5 rounded-full bg-gold/12 px-3.5 py-2 text-xs font-semibold text-gold-dark transition-colors hover:bg-gold/25"
+        >
+          <Plus className="h-3.5 w-3.5" /> Dodaj nalog
+        </button>
+        <button
+          onClick={onDelete}
+          className="rounded-lg p-2 text-ink/35 transition-colors hover:bg-red-50 hover:text-red-500"
+          title="Obriši grupu"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+
+      {group.members.length > 0 && (
+        <div className="mt-4 space-y-2 border-t border-ink/6 pt-4">
+          {group.members.map((m) => (
+            <MemberRow key={m.id} member={m} onChanged={onChanged} />
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+function MemberRow({ member, onChanged }: { member: GroupMember; onChanged: () => void }) {
+  const [open, setOpen] = useState(false);
+  const meta = ROLE_META[member.role];
+  const effective = { ...DEFAULT_MODULE_PERMS[member.role], ...(member.permissions ?? {}) };
+  const isCustom = member.permissions !== null;
+
+  const patch = useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      api(`/api/groups/members/${member.id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    onSuccess: onChanged,
+  });
+
+  const remove = useMutation({
+    mutationFn: () => api(`/api/groups/members/${member.id}`, { method: 'DELETE' }),
+    onSuccess: onChanged,
+  });
+
+  const togglePerm = (mod: PanelModule) =>
+    patch.mutate({ permissions: { ...effective, [mod]: !effective[mod] } });
+
+  return (
+    <div className="rounded-xl border border-ink/8 bg-ink/[0.015] p-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${meta.tint}`}>
+          <meta.icon className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-semibold">{member.name}</p>
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${meta.tint}`}>
+              {meta.label}
+            </span>
+            {isCustom && (
+              <span className="rounded-full bg-ink/6 px-2 py-0.5 text-[10px] font-semibold text-ink/50">
+                Prilagođen pristup
+              </span>
+            )}
+          </div>
+          <p className="truncate text-xs text-ink/45">{member.email}</p>
+        </div>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+            open ? 'bg-gold/15 text-gold-dark' : 'bg-ink/5 text-ink/60 hover:bg-gold/10 hover:text-gold-dark'
+          }`}
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5" /> Pristup
+        </button>
+        <button
+          onClick={() => {
+            if (confirm(`Ukloniti "${member.name}" iz grupe? Nalog bez drugih veza se briše.`))
+              remove.mutate();
+          }}
+          className="rounded-lg p-2 text-ink/35 transition-colors hover:bg-red-50 hover:text-red-500"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {open && (
+        <div className="mt-3 border-t border-ink/6 pt-3">
+          <div className="flex flex-wrap gap-2">
+            {PANEL_MODULES.map((mod) => (
+              <button
+                key={mod}
+                onClick={() => togglePerm(mod)}
+                disabled={patch.isPending}
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  effective[mod]
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border-ink/10 bg-white text-ink/40 hover:border-ink/25'
+                }`}
+              >
+                {effective[mod] ? '✓ ' : ''}
+                {PANEL_MODULE_LABELS[mod]}
+              </button>
+            ))}
+            {isCustom && (
+              <button
+                onClick={() => patch.mutate({ permissions: null })}
+                disabled={patch.isPending}
+                className="flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium text-ink/45 hover:bg-ink/5"
+                title="Vrati na default po roli"
+              >
+                <RotateCcw className="h-3 w-3" /> Default po roli
+              </button>
+            )}
+          </div>
+          <p className="mt-2 text-[11px] text-ink/40">
+            Moduli kojima nalog pristupa u panelu. Default za {meta.label}:{' '}
+            {PANEL_MODULES.filter((m) => DEFAULT_MODULE_PERMS[member.role][m])
+              .map((m) => PANEL_MODULE_LABELS[m])
+              .join(', ')}
+            .
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GroupModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [name, setName] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const save = useMutation({
+    mutationFn: () => api('/api/groups', { method: 'POST', body: JSON.stringify({ name }) }),
+    onSuccess: onSaved,
+    onError: (e) => setError(e instanceof ApiError ? e.message : 'Greška'),
+  });
+
+  return (
+    <ModalShell title="Nova grupa lokala" onClose={onClose}>
+      <input
+        autoFocus
+        placeholder="Naziv (npr. Caffe Central ekipa)"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        className={inputCls}
+      />
+      <p className="mt-2 text-xs text-ink/40">
+        Nakon kreiranja dodaj naloge (Šef / Konobar / Šank & Kuhinja), pa grupu dodijeli objektu u
+        „Objekti → Uredi objekat".
+      </p>
+      {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
+      <button
+        onClick={() => save.mutate()}
+        disabled={!name.trim() || save.isPending}
+        className="btn-glossy mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-gold py-2.5 text-sm font-semibold text-neutral-900 disabled:opacity-50"
+      >
+        {save.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+        Kreiraj grupu
+      </button>
+    </ModalShell>
+  );
+}
+
+function MemberModal({
+  group,
+  onClose,
+  onSaved,
+}: {
+  group: GroupRow;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState<StaffRole>('waiter');
+  const [error, setError] = useState<string | null>(null);
+
+  const save = useMutation({
+    mutationFn: () =>
+      api(`/api/groups/${group.id}/members`, {
+        method: 'POST',
+        body: JSON.stringify({ name, email, password, role }),
+      }),
+    onSuccess: onSaved,
+    onError: (e) => setError(e instanceof ApiError ? e.message : 'Greška'),
+  });
+
+  return (
+    <ModalShell title={`Novi nalog — ${group.name}`} onClose={onClose}>
+      <div className="space-y-3">
+        <input autoFocus placeholder="Ime i prezime" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
+        <input type="email" placeholder="Email (za prijavu)" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
+        <input type="text" placeholder="Lozinka (min. 8 znakova)" value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls} />
+        <div>
+          <span className="mb-1.5 block text-xs font-medium text-ink/50">Uloga</span>
+          <div className="grid grid-cols-3 gap-2">
+            {(['waiter', 'kitchen', 'manager'] as const).map((r) => {
+              const meta = ROLE_META[r];
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRole(r)}
+                  className={`flex flex-col items-center gap-1 rounded-lg border py-2.5 text-xs font-medium transition-colors ${
+                    role === r
+                      ? 'border-gold bg-gold/10 text-gold-dark'
+                      : 'border-ink/10 text-ink/50 hover:border-ink/25'
+                  }`}
+                >
+                  <meta.icon className="h-4 w-4" />
+                  {meta.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs text-ink/40">
+            Default pristup:{' '}
+            {PANEL_MODULES.filter((m) => DEFAULT_MODULE_PERMS[role][m])
+              .map((m) => PANEL_MODULE_LABELS[m])
+              .join(', ')}{' '}
+            — mijenjaš po članu kroz „Pristup".
+          </p>
+        </div>
+      </div>
+      {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
+      <button
+        onClick={() => save.mutate()}
+        disabled={!name.trim() || !email.trim() || password.length < 8 || save.isPending}
+        className="btn-glossy mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-gold py-2.5 text-sm font-semibold text-neutral-900 disabled:opacity-50"
+      >
+        {save.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+        Kreiraj nalog
+      </button>
+    </ModalShell>
+  );
+}
 
 function UserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const [name, setName] = useState('');

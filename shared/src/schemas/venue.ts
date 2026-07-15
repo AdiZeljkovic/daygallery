@@ -36,5 +36,7 @@ export type CreateFeedbackInput = z.infer<typeof createFeedbackSchema>;
 
 export const updateVenueSchema = createVenueSchema.partial().extend({
   isActive: z.boolean().optional(),
+  // grupa naloga sa pristupom lokalu (samo superadmin mijenja); null = ukloni
+  groupId: z.number().int().positive().nullable().optional(),
 });
 export type UpdateVenueInput = z.infer<typeof updateVenueSchema>;
