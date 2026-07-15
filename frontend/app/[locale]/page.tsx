@@ -26,6 +26,8 @@ import {
   Images,
   Armchair,
   Globe,
+  Menu as MenuIcon,
+  X,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { api } from '@/lib/api';
@@ -45,6 +47,19 @@ interface GalleryShot {
   thumbPath?: string | null;
   filePath: string;
   event?: { name: string; clientNames: string | null } | null;
+}
+
+// Parallax i teški efekti samo na desktopu — na mobitelu izazivaju flicker/repaint
+function useIsDesktop() {
+  const [desktop, setDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const on = () => setDesktop(mq.matches);
+    on();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return desktop;
 }
 
 export default function LandingPage() {
@@ -78,7 +93,7 @@ export default function LandingPage() {
       <IntroLoader />
       <ScrollProgress />
       <CursorGlow />
-      <Nav hasGallery={hasGallery} />
+      <Nav />
       <Hero />
       <TickerBand />
       <Manifesto />
@@ -88,7 +103,7 @@ export default function LandingPage() {
       {hasGallery && <GalleryStrip shots={gallery!} />}
       <Testimonials />
       <Faq />
-      <FinalCta hasGallery={hasGallery} />
+      <FinalCta />
     </main>
   );
 }
@@ -179,24 +194,26 @@ function CursorGlow() {
 
 /* ════════════════════════ NAV ════════════════════════ */
 
-function Nav({ hasGallery }: { hasGallery: boolean }) {
+function Nav() {
   const t = useTranslations('landing.nav');
   const locale = useLocale();
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const last = useRef(0);
   const { scrollY } = useScroll();
 
   useMotionValueEvent(scrollY, 'change', (v) => {
     setScrolled(v > 24);
-    setHidden(v > last.current && v > 400);
+    // ne sakrivaj dok je mobilni meni otvoren
+    setHidden(!menuOpen && v > last.current && v > 400);
     last.current = v;
   });
 
   const links = [
     { href: '#proizvodi', label: t('products') },
-    ...(hasGallery ? [{ href: '#galerija', label: t('gallery') }] : []),
+    { href: '#galerija', label: t('gallery') },
     { href: '#pitanja', label: t('faq') },
     { href: '#kontakt', label: t('contact') },
   ];
@@ -208,52 +225,97 @@ function Nav({ hasGallery }: { hasGallery: boolean }) {
       className="fixed inset-x-0 top-0 z-[70] px-4 pt-4 sm:px-6"
     >
       <nav
-        className={`mx-auto flex max-w-6xl items-center justify-between rounded-full border px-5 py-2.5 transition-all duration-500 ${
-          scrolled ? 'border-white/10 bg-black/50 backdrop-blur-xl' : 'border-transparent'
+        className={`mx-auto max-w-6xl rounded-3xl border px-5 py-2.5 transition-all duration-500 ${
+          scrolled || menuOpen ? 'border-white/10 bg-black/60 backdrop-blur-xl' : 'border-transparent'
         }`}
       >
-        <a href="#top" className="group flex items-center gap-2">
-          <span className="font-display text-lg font-bold tracking-tight" style={{ color: PAPER }}>
-            Special Day
-          </span>
-          <span
-            className="h-1.5 w-1.5 rounded-full transition-transform group-hover:scale-150"
-            style={{ background: GOLD }}
-          />
-        </a>
+        <div className="flex items-center justify-between">
+          <a href="#top" className="group flex items-center gap-2" onClick={() => setMenuOpen(false)}>
+            <span className="font-display text-lg font-bold tracking-tight" style={{ color: PAPER }}>
+              Special Day
+            </span>
+            <span
+              className="h-1.5 w-1.5 rounded-full transition-transform group-hover:scale-150"
+              style={{ background: GOLD }}
+            />
+          </a>
 
-        <div className="hidden items-center gap-1 md:flex">
-          {links.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              className="group relative rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-widest opacity-70 transition-opacity hover:opacity-100"
+          {/* Desktop linkovi */}
+          <div className="hidden items-center gap-1 md:flex">
+            {links.map((l) => (
+              <a
+                key={l.href}
+                href={l.href}
+                className="group relative rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-widest opacity-70 transition-opacity hover:opacity-100"
+              >
+                {l.label}
+                <span
+                  className="absolute inset-x-3.5 bottom-1 h-px w-0 transition-all duration-300 group-hover:w-[calc(100%-1.75rem)]"
+                  style={{ background: GOLD }}
+                />
+              </a>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link
+              href={pathname}
+              locale={locale === 'bs' ? 'en' : 'bs'}
+              className="flex items-center gap-1.5 rounded-full border border-white/12 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest opacity-80 transition-opacity hover:opacity-100"
             >
-              {l.label}
-              <span
-                className="absolute inset-x-3.5 bottom-1 h-px w-0 transition-all duration-300 group-hover:w-[calc(100%-1.75rem)]"
-                style={{ background: GOLD }}
-              />
-            </a>
-          ))}
+              <Globe className="h-3 w-3" /> {locale === 'bs' ? 'EN' : 'BS'}
+            </Link>
+            <Link
+              href="/admin"
+              className="btn-glossy hidden rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest text-black sm:block"
+              style={{ background: GOLD }}
+            >
+              {t('admin')}
+            </Link>
+            {/* Hamburger — mobitel */}
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/12 md:hidden"
+              aria-label="Meni"
+            >
+              {menuOpen ? <X className="h-4 w-4" /> : <MenuIcon className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Link
-            href={pathname}
-            locale={locale === 'bs' ? 'en' : 'bs'}
-            className="flex items-center gap-1.5 rounded-full border border-white/12 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest opacity-80 transition-opacity hover:opacity-100"
-          >
-            <Globe className="h-3 w-3" /> {locale === 'bs' ? 'EN' : 'BS'}
-          </Link>
-          <Link
-            href="/admin"
-            className="btn-glossy rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest text-black"
-            style={{ background: GOLD }}
-          >
-            {t('admin')}
-          </Link>
-        </div>
+        {/* Mobilni meni */}
+        <AnimatePresence>
+          {menuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25 }}
+              className="overflow-hidden md:hidden"
+            >
+              <div className="mt-3 space-y-1 border-t border-white/10 pt-3">
+                {links.map((l) => (
+                  <a
+                    key={l.href}
+                    href={l.href}
+                    onClick={() => setMenuOpen(false)}
+                    className="block rounded-xl px-3 py-3 text-sm font-semibold uppercase tracking-widest opacity-80 transition-colors hover:bg-white/5"
+                  >
+                    {l.label}
+                  </a>
+                ))}
+                <Link
+                  href="/admin"
+                  onClick={() => setMenuOpen(false)}
+                  className="btn-glossy mt-2 block rounded-xl px-3 py-3 text-center text-sm font-bold uppercase tracking-widest text-black"
+                  style={{ background: GOLD }}
+                >
+                  {t('admin')}
+                </Link>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
     </motion.header>
   );
@@ -263,6 +325,7 @@ function Nav({ hasGallery }: { hasGallery: boolean }) {
 
 function Hero() {
   const t = useTranslations('landing.hero');
+  const isDesktop = useIsDesktop();
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] });
   const yTitle = useTransform(scrollYProgress, [0, 1], [0, -120]);
@@ -273,10 +336,10 @@ function Hero() {
 
   return (
     <section id="top" ref={ref} className="relative flex min-h-[100svh] flex-col justify-center px-4 pt-28 sm:px-6">
-      {/* Aurora pozadina */}
-      <motion.div style={{ y: yBg }} className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+      {/* Aurora pozadina — parallax samo desktop */}
+      <motion.div style={isDesktop ? { y: yBg } : undefined} className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
         <div
-          className="absolute -top-1/4 left-1/2 h-[46rem] w-[46rem] -translate-x-1/2 rounded-full opacity-25 blur-[120px]"
+          className="absolute -top-1/4 left-1/2 h-[46rem] w-[46rem] -translate-x-1/2 rounded-full opacity-25 blur-[90px] lg:blur-[120px]"
           style={{ background: `radial-gradient(circle, ${GOLD}, transparent 65%)` }}
         />
         <div
@@ -291,7 +354,7 @@ function Hero() {
         />
       </motion.div>
 
-      <motion.div style={{ y: yTitle, opacity }} className="relative z-10 mx-auto w-full max-w-6xl">
+      <motion.div style={isDesktop ? { y: yTitle, opacity } : undefined} className="relative z-10 mx-auto w-full max-w-6xl">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -366,7 +429,7 @@ function Hero() {
       </motion.div>
 
       <motion.div
-        style={{ opacity }}
+        style={isDesktop ? { opacity } : undefined}
         className="absolute bottom-7 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2"
       >
         <span className="text-[10px] uppercase tracking-[0.3em] opacity-40">{t('scrollHint')}</span>
@@ -1002,17 +1065,18 @@ function Faq() {
 
 /* ════════════════════════ FINAL CTA + FOOTER ════════════════════════ */
 
-function FinalCta({ hasGallery }: { hasGallery: boolean }) {
+function FinalCta() {
   const t = useTranslations('landing.contact');
   const tn = useTranslations('landing.nav');
   const tf = useTranslations('landing.footer');
+  const isDesktop = useIsDesktop();
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end end'] });
   const yGlow = useTransform(scrollYProgress, [0, 1], [120, 0]);
 
   return (
     <footer id="kontakt" ref={ref} className="relative overflow-hidden px-4 pt-24 sm:px-6 sm:pt-36">
-      <motion.div style={{ y: yGlow }} className="pointer-events-none absolute inset-x-0 bottom-0 h-[30rem]">
+      <motion.div style={isDesktop ? { y: yGlow } : undefined} className="pointer-events-none absolute inset-x-0 bottom-0 h-[30rem]">
         <div
           className="absolute bottom-0 left-1/2 h-[30rem] w-[50rem] -translate-x-1/2 rounded-full opacity-25 blur-[120px]"
           style={{ background: `radial-gradient(circle, ${GOLD}, transparent 65%)` }}
@@ -1045,7 +1109,7 @@ function FinalCta({ hasGallery }: { hasGallery: boolean }) {
         </div>
         <div className="flex items-center gap-6 text-xs uppercase tracking-widest opacity-50">
           <a href="#proizvodi" className="transition-opacity hover:opacity-100">{tn('products')}</a>
-          {hasGallery && <a href="#galerija" className="transition-opacity hover:opacity-100">{tn('gallery')}</a>}
+          <a href="#galerija" className="transition-opacity hover:opacity-100">{tn('gallery')}</a>
           <a href="#pitanja" className="transition-opacity hover:opacity-100">{tn('faq')}</a>
           <a href={telHref} className="flex items-center gap-1.5 transition-opacity hover:opacity-100">
             <Phone className="h-3 w-3" /> {CONTACT_PHONE}
