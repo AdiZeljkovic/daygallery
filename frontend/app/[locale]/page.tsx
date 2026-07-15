@@ -169,9 +169,17 @@ function Nav() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // Isti (keširani) query kao galerija — da ne prikazujemo mrtav link kad je prazna
+  const { data: galleryImages } = useQuery({
+    queryKey: ['publicGallery'],
+    queryFn: () => api<PublicImage[]>('/api/public/gallery'),
+    staleTime: 60_000,
+  });
+  const hasGallery = !!galleryImages?.length;
+
   const links = [
     { href: '#proizvodi', label: t('products') },
-    { href: '#galerija', label: t('gallery') },
+    ...(hasGallery ? [{ href: '#galerija', label: t('gallery') }] : []),
     { href: '#faq', label: t('faq') },
     { href: '#kontakt', label: t('contact') },
   ];
@@ -1066,6 +1074,11 @@ function FinalCta() {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end end'] });
   const yGlow = useTransform(scrollYProgress, [0, 1], [80, 0]);
+  const { data: galleryImages } = useQuery({
+    queryKey: ['publicGallery'],
+    queryFn: () => api<PublicImage[]>('/api/public/gallery'),
+    staleTime: 60_000,
+  });
 
   return (
     <section id="kontakt" ref={ref} className="relative scroll-mt-20 overflow-hidden border-t border-[#f5f1e8]/6">
@@ -1138,9 +1151,11 @@ function FinalCta() {
             <a href="#proizvodi" className="transition-colors hover:text-gold">
               {tn('products')}
             </a>
-            <a href="#galerija" className="transition-colors hover:text-gold">
-              {tn('gallery')}
-            </a>
+            {!!galleryImages?.length && (
+              <a href="#galerija" className="transition-colors hover:text-gold">
+                {tn('gallery')}
+              </a>
+            )}
             <a href="#faq" className="transition-colors hover:text-gold">
               {tn('faq')}
             </a>
