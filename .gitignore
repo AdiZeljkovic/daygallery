@@ -8,6 +8,7 @@ out/
 .env.*
 !.env.example
 !.env.production.example
+!.env.day-gallery.example
 
 # runtime data
 uploads/
