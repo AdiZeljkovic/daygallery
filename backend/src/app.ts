@@ -70,7 +70,7 @@ export function createApp() {
   app.use('/api', staffRouter);
   app.use('/api', inventoryRouter);
   app.use('/api', tasksRouter);
-  app.use('/api', reviewsRouter);
+  app.use('/api/reviews', reviewsRouter);
   app.use('/api', menusRouter);
   app.use('/api', ordersRouter);
 

@@ -22,7 +22,7 @@ const idParam = (req: Request) => Number(req.params.id);
 
 /** Lista kampanja + broj žalbi. */
 reviewsRouter.get(
-  '/reviews',
+  '/',
   wrap(async (_req, res) => {
     const campaigns = await prisma.reviewCampaign.findMany({
       orderBy: { createdAt: 'desc' },
@@ -34,7 +34,7 @@ reviewsRouter.get(
 
 /** Detalj kampanje + žalbe (ocjene < 4). */
 reviewsRouter.get(
-  '/reviews/:id',
+  '/:id',
   wrap(async (req, res) => {
     const campaign = await prisma.reviewCampaign.findUnique({
       where: { id: idParam(req) },
@@ -47,7 +47,7 @@ reviewsRouter.get(
 
 /** Kreiranje kampanje. */
 reviewsRouter.post(
-  '/reviews',
+  '/',
   validate(createReviewCampaignSchema),
   wrap(async (req, res) => {
     const campaign = await prisma.reviewCampaign.create({
@@ -64,7 +64,7 @@ reviewsRouter.post(
 
 /** Izmjena kampanje. */
 reviewsRouter.patch(
-  '/reviews/:id',
+  '/:id',
   validate(updateReviewCampaignSchema),
   wrap(async (req, res) => {
     const data: Record<string, unknown> = {};
@@ -83,7 +83,7 @@ reviewsRouter.patch(
 
 /** Brisanje kampanje (+ slika). */
 reviewsRouter.delete(
-  '/reviews/:id',
+  '/:id',
   wrap(async (req, res) => {
     const campaign = await prisma.reviewCampaign.findUnique({
       where: { id: idParam(req) },
@@ -97,7 +97,7 @@ reviewsRouter.delete(
 
 /** Upload logotipa. */
 reviewsRouter.post(
-  '/reviews/:id/logo',
+  '/:id/logo',
   imageUpload.single('image'),
   wrap(async (req, res) => {
     const id = idParam(req);
@@ -123,7 +123,7 @@ reviewsRouter.post(
 
 /** Uklanjanje logotipa. */
 reviewsRouter.delete(
-  '/reviews/:id/logo',
+  '/:id/logo',
   wrap(async (req, res) => {
     const id = idParam(req);
     const campaign = await prisma.reviewCampaign.findUnique({
