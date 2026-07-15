@@ -2,385 +2,353 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useTranslations, useLocale } from 'next-intl';
-import Lenis from 'lenis';
 import {
   motion,
   AnimatePresence,
-  useInView,
   useScroll,
   useTransform,
-  type MotionValue,
+  useSpring,
+  useInView,
+  useMotionValue,
+  useMotionValueEvent,
 } from 'motion/react';
+import Lenis from 'lenis';
+import { useTranslations, useLocale } from 'next-intl';
 import {
-  Camera,
-  Mail,
-  Armchair,
-  UtensilsCrossed,
-  Check,
-  ChevronDown,
-  Menu as MenuIcon,
-  X,
-  Phone,
-  Globe,
-  Heart,
   ArrowUpRight,
-  ArrowDown,
-  ShoppingBag,
+  Phone,
+  Plus,
+  Star,
+  Check,
+  QrCode,
+  UtensilsCrossed,
+  CalendarHeart,
+  Images,
+  Armchair,
+  Globe,
 } from 'lucide-react';
-import { Link, usePathname, useRouter } from '@/i18n/navigation';
+import { Link, usePathname } from '@/i18n/navigation';
 import { api } from '@/lib/api';
 import { imageUrl } from '@/lib/menuTypes';
 
-const CONTACT_PHONE = '+387 61 232 381';
-const INK = '#0c0b09';
-const PAPER = '#f5f1e8';
+// ── Paleta (izolovan, tamni „editorial luxe" sistem samo za naslovnicu) ──
+const INK = '#0a0a0b';
+const PAPER = '#f4f0e6';
+const GOLD = '#d4af37';
+const GOLD_HI = '#f0dc92';
 
-interface PublicImage {
-  id: number;
-  thumbPath: string;
+const CONTACT_PHONE = '+387 61 232 381';
+const telHref = `tel:${CONTACT_PHONE.replaceAll(' ', '')}`;
+
+interface GalleryShot {
+  id: number | string;
+  thumbPath?: string | null;
   filePath: string;
-  width: number;
-  height: number;
-  event: { name: string; clientNames: string | null };
+  event?: { name: string; clientNames: string | null } | null;
 }
 
 export default function LandingPage() {
-  // Lenis smooth scroll — "skupi" osjećaj inercije
   useEffect(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const lenis = new Lenis({ duration: 1.15, smoothWheel: true });
-    let rafId: number;
-    const raf = (time: number) => {
+    const lenis = new Lenis({ duration: 1.2, easing: (t) => 1 - Math.pow(1 - t, 3) });
+    let raf = 0;
+    const loop = (time: number) => {
       lenis.raf(time);
-      rafId = requestAnimationFrame(raf);
+      raf = requestAnimationFrame(loop);
     };
-    rafId = requestAnimationFrame(raf);
+    raf = requestAnimationFrame(loop);
     return () => {
+      cancelAnimationFrame(raf);
       lenis.destroy();
-      cancelAnimationFrame(rafId);
     };
   }, []);
 
+  const { data: gallery } = useQuery({
+    queryKey: ['publicGallery'],
+    queryFn: () => api<GalleryShot[]>('/api/public/gallery'),
+    staleTime: 300_000,
+  });
+  const hasGallery = !!gallery?.length;
+
   return (
-    <main className="grain text-[#f5f1e8]" style={{ backgroundColor: INK }}>
+    <main
+      className="grain relative min-h-screen overflow-x-hidden"
+      style={{ background: INK, color: PAPER }}
+    >
       <IntroLoader />
-      <Nav />
+      <ScrollProgress />
+      <CursorGlow />
+      <Nav hasGallery={hasGallery} />
       <Hero />
-      <OutlineMarquee />
+      <TickerBand />
       <Manifesto />
       <Products />
+      <HowItWorks />
       <Numbers />
-      <GalleryMarquee />
+      {hasGallery && <GalleryStrip shots={gallery!} />}
       <Testimonials />
       <Faq />
-      <FinalCta />
+      <FinalCta hasGallery={hasGallery} />
     </main>
   );
 }
 
-// ================================================================
-// Intro loader — jednom po sesiji
-// ================================================================
+/* ════════════════════════ INTRO ════════════════════════ */
 
 function IntroLoader() {
-  const [show, setShow] = useState(false);
-
+  const [done, setDone] = useState(true);
   useEffect(() => {
-    if (sessionStorage.getItem('sd_intro')) return;
-    sessionStorage.setItem('sd_intro', '1');
-    setShow(true);
-    document.body.style.overflow = 'hidden';
-    const t = setTimeout(() => {
-      setShow(false);
-      document.body.style.overflow = '';
-    }, 1700);
-    return () => {
-      clearTimeout(t);
-      document.body.style.overflow = '';
-    };
+    if (sessionStorage.getItem('sd_intro_v2')) return;
+    setDone(false);
+    sessionStorage.setItem('sd_intro_v2', '1');
+    const t = setTimeout(() => setDone(true), 1900);
+    return () => clearTimeout(t);
   }, []);
 
-  const letters = 'Special Day'.split('');
-
+  const word = 'SPECIAL DAY';
   return (
     <AnimatePresence>
-      {show && (
+      {!done && (
         <motion.div
-          exit={{ y: '-100%' }}
-          transition={{ duration: 0.75, ease: [0.76, 0, 0.24, 1] }}
-          className="fixed inset-0 z-[100] flex flex-col items-center justify-center"
-          style={{ backgroundColor: INK }}
+          className="fixed inset-0 z-[100] flex items-center justify-center"
+          style={{ background: INK }}
+          initial={{ clipPath: 'inset(0 0 0 0)' }}
+          exit={{ clipPath: 'inset(0 0 100% 0)' }}
+          transition={{ duration: 0.9, ease: [0.76, 0, 0.24, 1] }}
         >
-          <div className="flex overflow-hidden font-display text-4xl font-bold sm:text-6xl">
-            {letters.map((letter, i) => (
-              <motion.span
-                key={i}
-                initial={{ y: '110%' }}
-                animate={{ y: 0 }}
-                transition={{ duration: 0.6, delay: 0.15 + i * 0.045, ease: [0.22, 1, 0.36, 1] }}
-              >
-                {letter === ' ' ? ' ' : letter}
-              </motion.span>
-            ))}
-            <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.9, type: 'spring', stiffness: 400, damping: 16 }}
-              className="text-gold"
+          <div className="overflow-hidden">
+            <motion.h1
+              className="flex font-display font-bold leading-none tracking-tight"
+              style={{ color: PAPER, fontSize: 'clamp(2rem, 9vw, 7rem)' }}
             >
-              .
-            </motion.span>
+              {word.split('').map((c, i) => (
+                <motion.span
+                  key={i}
+                  initial={{ y: '110%' }}
+                  animate={{ y: 0 }}
+                  transition={{ delay: 0.15 + i * 0.04, duration: 0.7, ease: [0.33, 1, 0.68, 1] }}
+                  className={c === ' ' ? 'w-[0.3em]' : ''}
+                >
+                  {c === ' ' ? ' ' : c}
+                </motion.span>
+              ))}
+            </motion.h1>
           </div>
-          <motion.div
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ duration: 0.9, delay: 0.5, ease: 'easeInOut' }}
-            className="mt-6 h-px w-40 origin-left bg-gold/60"
-          />
         </motion.div>
       )}
     </AnimatePresence>
   );
 }
 
-// ================================================================
-// Navigacija
-// ================================================================
+function ScrollProgress() {
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 260, damping: 40 });
+  return (
+    <motion.div
+      className="fixed left-0 top-0 z-[90] h-[2px] w-full origin-left"
+      style={{ scaleX, background: `linear-gradient(90deg, ${GOLD}, ${GOLD_HI})` }}
+    />
+  );
+}
 
-function Nav() {
+function CursorGlow() {
+  const x = useMotionValue(-500);
+  const y = useMotionValue(-500);
+  const sx = useSpring(x, { stiffness: 120, damping: 20 });
+  const sy = useSpring(y, { stiffness: 120, damping: 20 });
+  useEffect(() => {
+    const move = (e: MouseEvent) => {
+      x.set(e.clientX);
+      y.set(e.clientY);
+    };
+    window.addEventListener('pointermove', move);
+    return () => window.removeEventListener('pointermove', move);
+  }, [x, y]);
+  return (
+    <motion.div
+      aria-hidden
+      className="pointer-events-none fixed z-[80] hidden h-[26rem] w-[26rem] -translate-x-1/2 -translate-y-1/2 rounded-full lg:block"
+      style={{
+        left: sx,
+        top: sy,
+        background: `radial-gradient(circle, ${GOLD}14 0%, transparent 60%)`,
+      }}
+    />
+  );
+}
+
+/* ════════════════════════ NAV ════════════════════════ */
+
+function Nav({ hasGallery }: { hasGallery: boolean }) {
   const t = useTranslations('landing.nav');
   const locale = useLocale();
   const pathname = usePathname();
-  const router = useRouter();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [hidden, setHidden] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const lastY = useRef(0);
+  const [hidden, setHidden] = useState(false);
+  const last = useRef(0);
+  const { scrollY } = useScroll();
 
-  useEffect(() => {
-    const onScroll = () => {
-      const y = window.scrollY;
-      setScrolled(y > 30);
-      setHidden(y > 500 && y > lastY.current);
-      lastY.current = y;
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  // Isti (keširani) query kao galerija — da ne prikazujemo mrtav link kad je prazna
-  const { data: galleryImages } = useQuery({
-    queryKey: ['publicGallery'],
-    queryFn: () => api<PublicImage[]>('/api/public/gallery'),
-    staleTime: 60_000,
+  useMotionValueEvent(scrollY, 'change', (v) => {
+    setScrolled(v > 24);
+    setHidden(v > last.current && v > 400);
+    last.current = v;
   });
-  const hasGallery = !!galleryImages?.length;
 
   const links = [
     { href: '#proizvodi', label: t('products') },
     ...(hasGallery ? [{ href: '#galerija', label: t('gallery') }] : []),
-    { href: '#faq', label: t('faq') },
+    { href: '#pitanja', label: t('faq') },
     { href: '#kontakt', label: t('contact') },
   ];
 
-  const switchLocale = () => router.replace(pathname, { locale: locale === 'bs' ? 'en' : 'bs' });
-
   return (
-    <motion.nav
-      animate={{ y: hidden && !mobileOpen ? '-100%' : '0%' }}
-      transition={{ duration: 0.35, ease: 'easeInOut' }}
-      className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${
-        scrolled ? 'border-b border-[#f5f1e8]/8 bg-[#0c0b09]/75 backdrop-blur-xl' : ''
-      }`}
+    <motion.header
+      animate={{ y: hidden ? '-120%' : 0 }}
+      transition={{ duration: 0.4, ease: [0.33, 1, 0.68, 1] }}
+      className="fixed inset-x-0 top-0 z-[70] px-4 pt-4 sm:px-6"
     >
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <a href="#" className="group font-display text-xl font-bold">
-          Special Day
-          <span className="inline-block text-gold transition-transform duration-300 group-hover:scale-150">
-            .
+      <nav
+        className={`mx-auto flex max-w-6xl items-center justify-between rounded-full border px-5 py-2.5 transition-all duration-500 ${
+          scrolled ? 'border-white/10 bg-black/50 backdrop-blur-xl' : 'border-transparent'
+        }`}
+      >
+        <a href="#top" className="group flex items-center gap-2">
+          <span className="font-display text-lg font-bold tracking-tight" style={{ color: PAPER }}>
+            Special Day
           </span>
+          <span
+            className="h-1.5 w-1.5 rounded-full transition-transform group-hover:scale-150"
+            style={{ background: GOLD }}
+          />
         </a>
 
-        <div className="hidden items-center gap-9 md:flex">
-          {links.map((link) => (
+        <div className="hidden items-center gap-1 md:flex">
+          {links.map((l) => (
             <a
-              key={link.href}
-              href={link.href}
-              className="group relative text-[13px] font-medium uppercase tracking-widest text-[#f5f1e8]/50 transition-colors hover:text-[#f5f1e8]"
+              key={l.href}
+              href={l.href}
+              className="group relative rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-widest opacity-70 transition-opacity hover:opacity-100"
             >
-              {link.label}
-              <span className="absolute -bottom-1 left-0 h-px w-0 bg-gold transition-all duration-300 group-hover:w-full" />
+              {l.label}
+              <span
+                className="absolute inset-x-3.5 bottom-1 h-px w-0 transition-all duration-300 group-hover:w-[calc(100%-1.75rem)]"
+                style={{ background: GOLD }}
+              />
             </a>
           ))}
         </div>
 
-        <div className="hidden items-center gap-3 md:flex">
-          <button
-            onClick={switchLocale}
-            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold uppercase text-[#f5f1e8]/50 transition-colors hover:bg-[#f5f1e8]/8 hover:text-[#f5f1e8]"
-          >
-            <Globe className="h-3.5 w-3.5" />
-            {locale === 'bs' ? 'EN' : 'BS'}
-          </button>
+        <div className="flex items-center gap-2">
           <Link
-            href="/admin/login"
-            className="btn-glossy rounded-full bg-gold px-5 py-2 text-sm font-semibold text-[#141210]"
+            href={pathname}
+            locale={locale === 'bs' ? 'en' : 'bs'}
+            className="flex items-center gap-1.5 rounded-full border border-white/12 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest opacity-80 transition-opacity hover:opacity-100"
+          >
+            <Globe className="h-3 w-3" /> {locale === 'bs' ? 'EN' : 'BS'}
+          </Link>
+          <Link
+            href="/admin"
+            className="btn-glossy rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest text-black"
+            style={{ background: GOLD }}
           >
             {t('admin')}
           </Link>
         </div>
-
-        <button className="rounded-lg p-2 md:hidden" onClick={() => setMobileOpen(!mobileOpen)}>
-          {mobileOpen ? <X className="h-5 w-5" /> : <MenuIcon className="h-5 w-5" />}
-        </button>
-      </div>
-
-      <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden border-t border-[#f5f1e8]/8 bg-[#0c0b09]/95 backdrop-blur-xl md:hidden"
-          >
-            <div className="space-y-1 px-6 py-4">
-              {links.map((link) => (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMobileOpen(false)}
-                  className="block rounded-lg px-3 py-3 font-display text-lg font-semibold text-[#f5f1e8]/80"
-                >
-                  {link.label}
-                </a>
-              ))}
-              <div className="flex items-center gap-2 pt-3">
-                <button
-                  onClick={switchLocale}
-                  className="flex items-center gap-1.5 rounded-full bg-[#f5f1e8]/8 px-4 py-2.5 text-xs font-semibold uppercase"
-                >
-                  <Globe className="h-3.5 w-3.5" /> {locale === 'bs' ? 'EN' : 'BS'}
-                </button>
-                <Link
-                  href="/admin/login"
-                  className="btn-glossy flex-1 rounded-full bg-gold px-3 py-2.5 text-center text-sm font-semibold text-[#141210]"
-                >
-                  {t('admin')}
-                </Link>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.nav>
+      </nav>
+    </motion.header>
   );
 }
 
-// ================================================================
-// Hero — centrirana gigantska tipografija
-// ================================================================
+/* ════════════════════════ HERO ════════════════════════ */
 
 function Hero() {
   const t = useTranslations('landing.hero');
-  const ref = useRef<HTMLDivElement>(null);
-
+  const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] });
-  const yBg = useTransform(scrollYProgress, [0, 1], [0, 200]);
-  const yType = useTransform(scrollYProgress, [0, 1], [0, -80]);
-  const opacity = useTransform(scrollYProgress, [0, 0.85], [1, 0]);
+  const yTitle = useTransform(scrollYProgress, [0, 1], [0, -120]);
+  const yBg = useTransform(scrollYProgress, [0, 1], [0, 180]);
+  const opacity = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
+
+  const line = { hidden: { y: '110%' }, show: { y: 0 } };
 
   return (
-    <section
-      ref={ref}
-      className="relative flex min-h-[100svh] flex-col justify-center overflow-hidden pt-24"
-    >
-      {/* Pozadina: centralni glow + mreža tačaka */}
-      <motion.div style={{ y: yBg }} className="pointer-events-none absolute inset-0">
-        <motion.div
-          animate={{ scale: [1, 1.08, 1], opacity: [0.09, 0.14, 0.09] }}
-          transition={{ repeat: Infinity, duration: 9, ease: 'easeInOut' }}
-          className="absolute left-1/2 top-[30%] h-[34rem] w-[58rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gold blur-3xl"
+    <section id="top" ref={ref} className="relative flex min-h-[100svh] flex-col justify-center px-4 pt-28 sm:px-6">
+      {/* Aurora pozadina */}
+      <motion.div style={{ y: yBg }} className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+        <div
+          className="absolute -top-1/4 left-1/2 h-[46rem] w-[46rem] -translate-x-1/2 rounded-full opacity-25 blur-[120px]"
+          style={{ background: `radial-gradient(circle, ${GOLD}, transparent 65%)` }}
         />
         <div
-          className="absolute inset-0 opacity-40"
+          className="absolute inset-0 opacity-[0.05]"
           style={{
-            backgroundImage: 'radial-gradient(rgba(245,241,232,0.05) 1px, transparent 1px)',
-            backgroundSize: '32px 32px',
-            maskImage: 'radial-gradient(ellipse 70% 60% at 50% 42%, black, transparent)',
+            backgroundImage:
+              'linear-gradient(rgba(244,240,230,.4) 1px, transparent 1px), linear-gradient(90deg, rgba(244,240,230,.4) 1px, transparent 1px)',
+            backgroundSize: '64px 64px',
+            maskImage: 'radial-gradient(ellipse at center, black 20%, transparent 72%)',
+            WebkitMaskImage: 'radial-gradient(ellipse at center, black 20%, transparent 72%)',
           }}
         />
       </motion.div>
 
-      {/* Tipografija — centrirana */}
-      <motion.div
-        style={{ y: yType, opacity }}
-        className="relative z-10 mx-auto w-full max-w-5xl px-6 text-center"
-      >
-        <motion.p
-          initial={{ opacity: 0, y: 14 }}
+      <motion.div style={{ y: yTitle, opacity }} className="relative z-10 mx-auto w-full max-w-6xl">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="mb-9 inline-flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-gold"
+          transition={{ delay: 0.2, duration: 0.7 }}
+          className="mb-6 flex items-center gap-3"
         >
-          <span className="h-px w-10 bg-gold/60" />
-          {t('eyebrow')}
-          <span className="h-px w-10 bg-gold/60" />
-        </motion.p>
+          <span className="h-px w-10" style={{ background: GOLD }} />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: GOLD }}>
+            {t('eyebrow')}
+          </span>
+        </motion.div>
 
-        <h1 className="font-display font-bold leading-[1.02] tracking-tight">
-          <span className="block overflow-hidden">
-            <motion.span
-              initial={{ y: '105%' }}
-              animate={{ y: 0 }}
-              transition={{ duration: 0.9, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="block text-[clamp(2.7rem,7vw,6.5rem)]"
-            >
-              {t('title1')}
-            </motion.span>
-          </span>
-          <span className="block overflow-hidden">
-            <motion.span
-              initial={{ y: '105%' }}
-              animate={{ y: 0 }}
-              transition={{ duration: 0.9, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className="block text-[clamp(2.7rem,7vw,6.5rem)] italic text-gold"
-            >
-              {t('title2')}
-            </motion.span>
-          </span>
+        <h1 className="font-display font-bold leading-[0.92] tracking-tight" style={{ fontSize: 'clamp(2.8rem, 8.5vw, 8rem)' }}>
+          {[t('title1'), t('title2')].map((ln, i) => (
+            <span key={i} className="block overflow-hidden">
+              <motion.span
+                variants={line}
+                initial="hidden"
+                animate="show"
+                transition={{ delay: 0.35 + i * 0.12, duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+                className="block"
+                style={i === 1 ? { fontStyle: 'italic', color: GOLD } : undefined}
+              >
+                {ln}
+              </motion.span>
+            </span>
+          ))}
         </h1>
 
         <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.85 }}
-          className="mx-auto mt-8 max-w-xl text-base leading-relaxed text-[#f5f1e8]/50 sm:text-lg"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.62 }}
+          transition={{ delay: 0.9, duration: 0.8 }}
+          className="mt-7 max-w-xl text-base leading-relaxed sm:text-lg"
         >
           {t('sub')}
         </motion.p>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 1 }}
-          className="mt-10 flex flex-wrap items-center justify-center gap-4"
+          transition={{ delay: 1.05, duration: 0.7 }}
+          className="mt-9 flex flex-wrap items-center gap-3"
         >
           <a
             href="#proizvodi"
-            className="btn-glossy group inline-flex items-center gap-3 rounded-full bg-gold py-2 pl-7 pr-2 font-semibold text-[#141210]"
+            className="btn-glossy group flex items-center gap-2 rounded-full px-6 py-3.5 text-sm font-bold text-black"
+            style={{ background: GOLD }}
           >
             {t('cta')}
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#141210]/90 text-gold transition-transform duration-300 ease-out group-hover:rotate-45">
-              <ArrowUpRight className="h-4 w-4" />
-            </span>
+            <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </a>
           <a
-            href={`tel:${CONTACT_PHONE.replaceAll(' ', '')}`}
-            className="inline-flex items-center gap-2 rounded-full border border-[#f5f1e8]/15 px-6 py-3 text-sm font-medium text-[#f5f1e8]/70 transition-colors hover:border-gold/50 hover:text-gold"
+            href={telHref}
+            className="flex items-center gap-2 rounded-full border border-white/15 px-6 py-3.5 text-sm font-semibold transition-colors hover:border-white/40"
           >
-            <Phone className="h-4 w-4" />
-            {CONTACT_PHONE}
+            <Phone className="h-4 w-4" /> {CONTACT_PHONE}
           </a>
         </motion.div>
 
@@ -388,113 +356,104 @@ function Hero() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1.3 }}
-          className="mx-auto mt-16 flex max-w-2xl items-center justify-center gap-8 border-t border-[#f5f1e8]/8 pt-7 sm:gap-14"
+          transition={{ delay: 1.25, duration: 0.8 }}
+          className="mt-14 flex flex-wrap gap-x-12 gap-y-6 border-t border-white/8 pt-8"
         >
-          <Stat value={50} suffix="+" label={t('statEvents')} />
-          <span className="h-8 w-px bg-[#f5f1e8]/10" />
-          <Stat value={10000} suffix="+" label={t('statMemories')} />
-          <span className="h-8 w-px bg-[#f5f1e8]/10" />
+          <Stat value={500} suffix="+" label={t('statEvents')} />
+          <Stat value={120000} suffix="+" label={t('statMemories')} />
           <Stat value={24} suffix="/7" label={t('statSupport')} />
         </motion.div>
       </motion.div>
 
-      {/* Scroll indikator */}
-      <motion.a
-        href="#manifest"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.6 }}
-        className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2"
-        aria-label={t('scrollHint')}
+      <motion.div
+        style={{ opacity }}
+        className="absolute bottom-7 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2"
       >
-        <motion.span
-          animate={{ y: [0, 6, 0] }}
-          transition={{ repeat: Infinity, duration: 2 }}
-          className="flex h-11 w-11 items-center justify-center rounded-full border border-[#f5f1e8]/15 text-[#f5f1e8]/40 transition-colors hover:border-gold/50 hover:text-gold"
-        >
-          <ArrowDown className="h-4 w-4" />
-        </motion.span>
-      </motion.a>
+        <span className="text-[10px] uppercase tracking-[0.3em] opacity-40">{t('scrollHint')}</span>
+        <motion.div
+          animate={{ y: [0, 8, 0] }}
+          transition={{ repeat: Infinity, duration: 1.6 }}
+          className="h-8 w-px"
+          style={{ background: `linear-gradient(${GOLD}, transparent)` }}
+        />
+      </motion.div>
     </section>
   );
 }
 
 function Stat({ value, suffix, label }: { value: number; suffix: string; label: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true });
-  const [display, setDisplay] = useState(0);
-
+  const [n, setN] = useState(0);
   useEffect(() => {
     if (!inView) return;
+    const dur = 1800;
     const start = performance.now();
-    let raf: number;
+    let raf = 0;
     const tick = (now: number) => {
-      const p = Math.min(1, (now - start) / 1800);
-      setDisplay(Math.round(value * (1 - Math.pow(1 - p, 3))));
+      const p = Math.min((now - start) / dur, 1);
+      setN(Math.round(value * (1 - Math.pow(1 - p, 3))));
       if (p < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [inView, value]);
-
+  const fmt = n >= 1000 ? `${(n / 1000).toFixed(n >= 100000 ? 0 : 1)}k` : String(n);
   return (
-    <div>
-      <span ref={ref} className="font-display text-2xl font-bold text-gold sm:text-3xl">
-        {display.toLocaleString('bs-BA')}
+    <div ref={ref}>
+      <div className="font-display text-3xl font-bold sm:text-4xl" style={{ color: GOLD }}>
+        {fmt}
         {suffix}
-      </span>
-      <p className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-[#f5f1e8]/35">{label}</p>
+      </div>
+      <div className="mt-1 text-[11px] uppercase tracking-widest opacity-45">{label}</div>
     </div>
   );
 }
 
-// ================================================================
-// Outline marquee — ogromna šuplja tipografija
-// ================================================================
+/* ════════════════════════ TICKER ════════════════════════ */
 
-function OutlineMarquee() {
-  const t = useTranslations('landing.products');
-  const items = [t('gallery.name'), t('invites.name'), t('seating.name'), t('menu.name')];
-
+function TickerBand() {
+  const items = ['GALERIJE', '✦', 'POZIVNICE', '✦', 'DIGITALNI MENI', '✦', 'RASPORED', '✦', 'NARUČIVANJE', '✦'];
+  const row = [...items, ...items];
+  const Row = ({ aria }: { aria?: boolean }) => (
+    <div className="animate-marquee-slow flex shrink-0 items-center gap-8 pr-8" aria-hidden={aria}>
+      {row.map((w, i) => (
+        <span
+          key={i}
+          className={`font-display text-3xl font-bold uppercase tracking-tight sm:text-5xl ${w === '✦' ? '' : 'text-outline-gold'}`}
+          style={w === '✦' ? { color: GOLD } : undefined}
+        >
+          {w}
+        </span>
+      ))}
+    </div>
+  );
   return (
-    <div className="marquee-pause overflow-hidden border-y border-[#f5f1e8]/6 py-6">
-      <div className="animate-marquee-slow flex w-max items-center gap-12">
-        {[...items, ...items, ...items, ...items].map((item, i) => (
-          <span key={i} className="flex items-center gap-12 whitespace-nowrap">
-            <span className="text-outline-gold font-display text-5xl font-bold uppercase sm:text-7xl">
-              {item}
-            </span>
-            <span className="h-2.5 w-2.5 rounded-full bg-gold/50" />
-          </span>
-        ))}
+    <div className="relative border-y border-white/8 py-5" style={{ background: '#0d0d0e' }}>
+      <div className="flex overflow-hidden">
+        <Row />
+        <Row aria />
       </div>
     </div>
   );
 }
 
-// ================================================================
-// Manifesto — riječi se pale dok skrolaš
-// ================================================================
+/* ════════════════════════ MANIFESTO ════════════════════════ */
 
 function Manifesto() {
   const t = useTranslations('landing');
   const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start 0.85', 'end 0.45'] });
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start 0.85', 'end 0.5'] });
   const words = t('manifesto').split(' ');
 
   return (
-    <section id="manifest" className="scroll-mt-20 px-6 py-36 sm:py-44">
+    <section className="px-4 py-28 sm:px-6 sm:py-40">
       <div ref={ref} className="mx-auto max-w-4xl">
-        <p className="flex flex-wrap gap-x-[0.35em] gap-y-2 font-display text-[clamp(1.6rem,4vw,3.2rem)] font-semibold leading-[1.25]">
-          {words.map((word, i) => (
-            <ManifestoWord
-              key={i}
-              word={word}
-              progress={scrollYProgress}
-              start={i / words.length}
-              end={(i + 1) / words.length}
-            />
+        <p className="flex flex-wrap font-display font-semibold leading-[1.35]" style={{ fontSize: 'clamp(1.5rem, 4vw, 3rem)' }}>
+          {words.map((w, i) => (
+            <ManifestoWord key={i} progress={scrollYProgress} range={[i / words.length, (i + 1.5) / words.length]}>
+              {w}
+            </ManifestoWord>
           ))}
         </p>
       </div>
@@ -503,28 +462,26 @@ function Manifesto() {
 }
 
 function ManifestoWord({
-  word,
+  children,
   progress,
-  start,
-  end,
+  range,
 }: {
-  word: string;
-  progress: MotionValue<number>;
-  start: number;
-  end: number;
+  children: string;
+  progress: ReturnType<typeof useScroll>['scrollYProgress'];
+  range: [number, number];
 }) {
-  const opacity = useTransform(progress, [start, end], [0.12, 1]);
-  const gold = word.startsWith('Bez') || word.startsWith('No') || word.startsWith('Nula');
+  const opacity = useTransform(progress, range, [0.14, 1]);
+  const accent = /^(bez|no|nula|nikad|nikada|zero)/i.test(children);
   return (
-    <motion.span style={{ opacity }} className={gold ? 'italic text-gold' : undefined}>
-      {word}
-    </motion.span>
+    <span className="mr-[0.28em]">
+      <motion.span style={{ opacity, color: accent ? GOLD : PAPER, fontStyle: accent ? 'italic' : 'normal' }}>
+        {children}
+      </motion.span>
+    </span>
   );
 }
 
-// ================================================================
-// Proizvodi — sticky deck (kartice se slažu jedna preko druge)
-// ================================================================
+/* ════════════════════════ PRODUCTS ════════════════════════ */
 
 function Products() {
   const t = useTranslations('landing.products');
@@ -532,95 +489,47 @@ function Products() {
 
   const products = [
     {
+      key: 'menu',
       icon: UtensilsCrossed,
-      badge: t('menu.badge'),
       name: t('menu.name'),
       desc: t('menu.desc'),
+      badge: t('menu.badge'),
       features: [t('menu.f1'), t('menu.f2'), t('menu.f3')],
-      visual: <MenuMockup td={td} />,
-      tone: '#17130c',
+      mock: <MenuMockup td={td} />,
     },
     {
-      icon: Camera,
+      key: 'gallery',
+      icon: Images,
       name: t('gallery.name'),
       desc: t('gallery.desc'),
       features: [t('gallery.f1'), t('gallery.f2'), t('gallery.f3')],
-      visual: <GalleryMockup />,
-      tone: '#141110',
+      mock: <GalleryMockup td={td} />,
     },
     {
-      icon: Mail,
+      key: 'invites',
+      icon: CalendarHeart,
       name: t('invites.name'),
       desc: t('invites.desc'),
       features: [t('invites.f1'), t('invites.f2'), t('invites.f3')],
-      visual: <InviteMockup td={td} />,
-      tone: '#16120e',
+      mock: <InviteMockup td={td} />,
     },
     {
+      key: 'seating',
       icon: Armchair,
       name: t('seating.name'),
       desc: t('seating.desc'),
       features: [t('seating.f1'), t('seating.f2'), t('seating.f3')],
-      visual: <SeatingMockup />,
-      tone: '#131110',
+      mock: <SeatingMockup />,
     },
   ];
 
   return (
-    <section id="proizvodi" className="scroll-mt-20 px-4 pb-32 sm:px-6">
+    <section id="proizvodi" className="px-4 py-20 sm:px-6 sm:py-28">
       <div className="mx-auto max-w-6xl">
-        <SectionLabel index="01" label={t('overline')} />
-        <h2 className="mt-4 max-w-2xl font-display text-4xl font-bold leading-tight sm:text-6xl">
-          {t('title')}
-        </h2>
-
-        <div className="mt-16">
-          {products.map((product, i) => (
-            <div key={i} className="sticky" style={{ top: `${88 + i * 24}px` }}>
-              <motion.article
-                initial={{ opacity: 0, y: 60 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-80px' }}
-                transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-                className="mb-8 overflow-hidden rounded-[2rem] border border-[#f5f1e8]/8 shadow-lifted"
-                style={{ backgroundColor: product.tone }}
-              >
-                <div className="grid items-center gap-8 p-8 sm:p-12 lg:grid-cols-2 lg:gap-14">
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <span className="font-display text-sm font-bold text-gold/50">
-                        {String(i + 1).padStart(2, '0')} / {String(products.length).padStart(2, '0')}
-                      </span>
-                      {product.badge && (
-                        <span className="rounded-full bg-gold px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-[#141210]">
-                          {product.badge}
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-6 flex items-center gap-4">
-                      <span className="flex h-13 w-13 items-center justify-center rounded-2xl bg-gold/12 p-3.5">
-                        <product.icon className="h-6 w-6 text-gold" />
-                      </span>
-                      <h3 className="font-display text-2xl font-bold sm:text-4xl">{product.name}</h3>
-                    </div>
-                    <p className="mt-5 max-w-md leading-relaxed text-[#f5f1e8]/50 sm:text-lg">
-                      {product.desc}
-                    </p>
-                    <ul className="mt-7 space-y-3.5">
-                      {product.features.map((feature) => (
-                        <li key={feature} className="flex items-center gap-3 text-sm font-medium text-[#f5f1e8]/75">
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-gold/30 bg-gold/10">
-                            <Check className="h-3 w-3 text-gold" />
-                          </span>
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="max-lg:order-first">{product.visual}</div>
-                </div>
-              </motion.article>
-            </div>
+        <SectionHead index="01" overline={t('overline')} title={t('title')} />
+        <div className="mt-16 space-y-24 sm:space-y-36">
+          {products.map(({ key, ...p }, i) => (
+            <ProductRow key={key} {...p} index={i + 1} flip={i % 2 === 1} />
           ))}
         </div>
       </div>
@@ -628,432 +537,246 @@ function Products() {
   );
 }
 
-/* --------- CSS mockupi telefona --------- */
-
-function PhoneFrame({ children }: { children: React.ReactNode }) {
+function ProductRow({
+  icon: Icon,
+  name,
+  desc,
+  badge,
+  features,
+  mock,
+  index,
+  flip,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  name: string;
+  desc: string;
+  badge?: string;
+  features: string[];
+  mock: React.ReactNode;
+  index: number;
+  flip: boolean;
+}) {
   return (
-    <div className="mx-auto w-full max-w-[18rem]">
+    <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+      {/* Tekst */}
       <motion.div
-        whileHover={{ y: -8 }}
-        transition={{ type: 'spring', stiffness: 200, damping: 22 }}
-        className="rounded-[2.2rem] border border-[#f5f1e8]/12 bg-[#0a0908] p-2.5 shadow-lifted"
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-80px' }}
+        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        className={flip ? 'lg:order-2' : ''}
       >
-        <div className="overflow-hidden rounded-[1.7rem] bg-[#12100d] text-[#f5f1e8]">{children}</div>
+        <div className="flex items-center gap-4">
+          <span className="font-display text-6xl font-bold leading-none text-outline-gold sm:text-7xl">
+            0{index}
+          </span>
+          <span className="flex h-11 w-11 items-center justify-center rounded-full" style={{ background: `${GOLD}22`, color: GOLD }}>
+            <Icon className="h-5 w-5" />
+          </span>
+          {badge && (
+            <span className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-black" style={{ background: GOLD }}>
+              {badge}
+            </span>
+          )}
+        </div>
+        <h3 className="mt-5 font-display text-3xl font-bold sm:text-4xl">{name}</h3>
+        <p className="mt-4 max-w-md text-[15px] leading-relaxed opacity-55">{desc}</p>
+        <ul className="mt-6 space-y-2.5">
+          {features.map((f) => (
+            <li key={f} className="flex items-center gap-2.5 text-sm opacity-80">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full" style={{ background: `${GOLD}20` }}>
+                <Check className="h-3 w-3" style={{ color: GOLD }} />
+              </span>
+              {f}
+            </li>
+          ))}
+        </ul>
+      </motion.div>
+
+      {/* Mockup */}
+      <motion.div
+        initial={{ opacity: 0, y: 50 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-80px' }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        className={`flex justify-center ${flip ? 'lg:order-1' : ''}`}
+        style={{ perspective: 1000 }}
+      >
+        {mock}
       </motion.div>
     </div>
   );
 }
 
-function MenuMockup({ td }: { td: ReturnType<typeof useTranslations> }) {
+function Phone3D({ children, tone = '#111013' }: { children: React.ReactNode; tone?: string }) {
   return (
-    <PhoneFrame>
-      <div className="p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-display text-sm font-bold">Caffe Central</p>
-            <p className="text-[9px] text-[#f5f1e8]/35">Ferhadija 12 · Sarajevo</p>
-          </div>
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold/15">
-            <UtensilsCrossed className="h-3.5 w-3.5 text-gold" />
-          </span>
-        </div>
-        <div className="mt-3 flex gap-1.5">
-          {['Hrana', 'Pića', 'Deserti'].map((c, i) => (
-            <span
-              key={c}
-              className={`rounded-full px-2.5 py-1 text-[9px] font-semibold ${
-                i === 1 ? 'bg-gold text-[#141210]' : 'bg-[#f5f1e8]/8 text-[#f5f1e8]/50'
-              }`}
-            >
-              {c}
-            </span>
-          ))}
-        </div>
-        <div className="mt-3 space-y-2">
-          {[
-            { name: 'Cappuccino', price: '3.50', tone: '#7a6242' },
-            { name: 'Limunada', price: '3.50', tone: '#95815e' },
-            { name: 'Espresso', price: '2.50', tone: '#403528' },
-          ].map((item) => (
-            <div key={item.name} className="flex items-center gap-2.5 rounded-xl bg-[#f5f1e8]/5 p-2">
-              <div className="h-10 w-10 rounded-lg" style={{ backgroundColor: item.tone }} />
-              <div className="flex-1">
-                <p className="text-[10px] font-semibold">{item.name}</p>
-                <p className="text-[10px] font-bold text-gold">{item.price} BAM</p>
-              </div>
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gold text-[#141210]">
-                <span className="text-xs font-bold leading-none">+</span>
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="mt-3 flex items-center justify-between rounded-full bg-gold px-3.5 py-2.5 text-[#141210]">
-          <span className="flex items-center gap-1.5 text-[10px] font-bold">
-            <ShoppingBag className="h-3 w-3" />
-            {td('order.table')}
-          </span>
-          <span className="text-[10px] font-bold">9.50 BAM</span>
-        </div>
-      </div>
-    </PhoneFrame>
+    <motion.div
+      whileHover={{ y: -10 }}
+      transition={{ type: 'spring', stiffness: 200, damping: 18 }}
+      className="relative w-[15rem] rounded-[2.4rem] border border-white/10 p-2.5 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.7)]"
+      style={{ background: tone }}
+    >
+      <div className="absolute left-1/2 top-3 z-10 h-1.5 w-16 -translate-x-1/2 rounded-full bg-white/15" />
+      <div className="overflow-hidden rounded-[1.9rem] bg-black/40 pt-7">{children}</div>
+    </motion.div>
   );
 }
 
-function GalleryMockup() {
-  const tones = ['#5b4a32', '#7a6242', '#403528', '#8a7048', '#33291d', '#6b5638', '#4d3f2c', '#95815e', '#584732'];
-  const heights = [3.4, 4.6, 3.0, 4.2, 3.8, 3.2, 4.4, 3.6, 4.0];
+function MenuMockup({ td }: { td: ReturnType<typeof useTranslations> }) {
   return (
-    <PhoneFrame>
-      <div className="p-4">
-        <div className="text-center">
-          <p className="font-display text-sm font-bold">Amina & Emir</p>
-          <p className="text-[9px] uppercase tracking-[0.2em] text-gold">12. septembar 2026.</p>
+    <Phone3D>
+      <div className="space-y-2 px-3 pb-4">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.03] p-2">
+            <div className="h-9 w-9 rounded-lg" style={{ background: `${GOLD}${i === 0 ? '55' : '22'}` }} />
+            <div className="flex-1">
+              <div className="h-2 w-16 rounded bg-white/25" />
+              <div className="mt-1.5 h-1.5 w-10 rounded" style={{ background: GOLD }} />
+            </div>
+            <div className="flex h-6 w-6 items-center justify-center rounded-full" style={{ background: GOLD }}>
+              <Plus className="h-3 w-3 text-black" />
+            </div>
+          </div>
+        ))}
+        <motion.div
+          initial={{ opacity: 0.6 }}
+          animate={{ opacity: [0.6, 1, 0.6] }}
+          transition={{ repeat: Infinity, duration: 2 }}
+          className="mt-3 rounded-xl border border-white/10 p-2.5"
+          style={{ background: `${GOLD}12` }}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-[9px] font-bold uppercase tracking-wide" style={{ color: GOLD }}>
+                {td('order.title')}
+              </div>
+              <div className="mt-0.5 text-[8px] text-white/40">{td('order.table')} · {td('order.item1')}</div>
+            </div>
+            <div className="rounded-full px-2.5 py-1 text-[8px] font-bold text-black" style={{ background: GOLD }}>
+              {td('order.accept')}
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </Phone3D>
+  );
+}
+
+function GalleryMockup({ td }: { td: ReturnType<typeof useTranslations> }) {
+  const heights = [56, 40, 48, 64, 44, 52];
+  return (
+    <Phone3D>
+      <div className="px-3 pb-4">
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center gap-1 text-[9px] font-bold" style={{ color: GOLD }}>
+            <Images className="h-3 w-3" /> {td('gallery.count')}
+          </div>
+          <QrCode className="h-3.5 w-3.5 text-white/30" />
         </div>
-        <div className="mt-3 columns-2 gap-1.5">
-          {tones.map((tone, i) => (
-            <div key={i} className="mb-1.5 rounded-lg" style={{ backgroundColor: tone, height: `${heights[i]}rem` }} />
+        <div className="columns-2 gap-1.5">
+          {heights.map((h, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.08 }}
+              className="mb-1.5 rounded-lg"
+              style={{ height: h, background: `linear-gradient(135deg, ${GOLD}${i % 2 ? '33' : '22'}, rgba(255,255,255,0.05))` }}
+            />
           ))}
         </div>
-        <div className="mt-2 flex items-center justify-center gap-1.5 rounded-full border border-gold/40 py-2 text-[10px] font-bold text-gold">
-          <Camera className="h-3 w-3" /> Dodaj uspomenu
-        </div>
       </div>
-    </PhoneFrame>
+    </Phone3D>
   );
 }
 
 function InviteMockup({ td }: { td: ReturnType<typeof useTranslations> }) {
   return (
-    <PhoneFrame>
-      <div className="relative p-4 pb-5 text-center">
-        <div className="pointer-events-none absolute -top-10 left-1/2 h-32 w-48 -translate-x-1/2 rounded-full bg-gold/15 blur-2xl" />
-        <p className="mt-2 text-[8px] uppercase tracking-[0.3em] text-[#f5f1e8]/40">
-          Sa radošću vas pozivamo
-        </p>
-        <p className="mt-2 font-display text-xl font-bold">
-          Amina <span className="text-gold">&</span> Emir
-        </p>
-        <p className="mt-1 text-[9px] uppercase tracking-[0.2em] text-[#f5f1e8]/45">
-          Subota · 12.09.2026. · 17h
-        </p>
-        <div className="mx-auto mt-3 grid max-w-[13rem] grid-cols-4 gap-1">
-          {['128', '14', '32', '08'].map((n, i) => (
-            <div key={i} className="rounded-lg border border-gold/25 bg-gold/5 py-1.5">
-              <p className="font-display text-sm font-bold text-gold">{n}</p>
-              <p className="text-[7px] uppercase text-[#f5f1e8]/35">{['dana', 'sati', 'min', 'sek'][i]}</p>
+    <Phone3D tone="#0e130f">
+      <div className="px-3 pb-4 text-center">
+        <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-full" style={{ background: `${GOLD}22` }}>
+          <CalendarHeart className="h-4 w-4" style={{ color: GOLD }} />
+        </div>
+        <div className="font-display text-sm italic" style={{ color: GOLD_HI }}>{td('rsvp.names')}</div>
+        <div className="mt-3 flex justify-center gap-1.5">
+          {['12', '08', '45', '20'].map((v, i) => (
+            <div key={i} className="rounded-md border border-white/10 bg-white/[0.03] px-1.5 py-1">
+              <div className="font-display text-xs font-bold">{v}</div>
             </div>
           ))}
         </div>
-        <div className="mx-auto mt-3 flex max-w-[13rem] items-center justify-between rounded-xl bg-[#f5f1e8]/5 px-3 py-2">
-          <span className="flex items-center gap-1.5 text-[9px] font-semibold">
-            <Heart className="h-3 w-3 fill-gold text-gold" /> {td('rsvp.names')}
-          </span>
-          <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-400">
-            <Check className="h-2.5 w-2.5" /> {td('rsvp.reply')}
-          </span>
-        </div>
-        <div className="mx-auto mt-2 max-w-[13rem] rounded-full bg-gold py-2 text-[10px] font-bold text-[#141210]">
-          Potvrdi dolazak
-        </div>
+        <motion.div
+          initial={{ scale: 0.94 }}
+          whileInView={{ scale: 1 }}
+          viewport={{ once: true }}
+          className="mt-3 rounded-full py-1.5 text-[9px] font-bold text-black"
+          style={{ background: GOLD }}
+        >
+          {td('rsvp.reply')} · {td('rsvp.guests')}
+        </motion.div>
       </div>
-    </PhoneFrame>
+    </Phone3D>
   );
 }
 
 function SeatingMockup() {
-  const tables = [
-    { n: '1', vip: false }, { n: '2', vip: false }, { n: '3', vip: true },
-    { n: '4', vip: false }, { n: '5', vip: false }, { n: '6', vip: true },
-    { n: '7', vip: false }, { n: '8', vip: false }, { n: '9', vip: false },
+  return (
+    <Phone3D>
+      <div className="px-3 pb-4">
+        <div className="mb-2 h-6 rounded-full border border-white/10 bg-white/[0.04]" />
+        <div className="grid grid-cols-3 gap-1.5">
+          {Array.from({ length: 9 }).map((_, i) => {
+            const vip = i === 4;
+            const mine = i === 2;
+            return (
+              <div
+                key={i}
+                className="flex aspect-square items-center justify-center rounded-lg text-[8px] font-bold"
+                style={{
+                  background: mine ? GOLD : vip ? `${GOLD}33` : 'rgba(255,255,255,0.04)',
+                  color: mine ? '#000' : vip ? GOLD : 'rgba(255,255,255,0.4)',
+                  border: mine ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                }}
+              >
+                {vip ? 'VIP' : i + 1}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </Phone3D>
+  );
+}
+
+/* ════════════════════════ HOW ════════════════════════ */
+
+function HowItWorks() {
+  const t = useTranslations('landing.how');
+  const steps = [
+    { t: t('s1t'), d: t('s1d') },
+    { t: t('s2t'), d: t('s2d') },
+    { t: t('s3t'), d: t('s3d') },
+    { t: t('s4t'), d: t('s4d') },
   ];
   return (
-    <PhoneFrame>
-      <div className="p-4">
-        <div className="text-center">
-          <p className="text-[9px] uppercase tracking-[0.25em] text-gold">Raspored sjedenja</p>
-          <p className="mt-1 font-display text-sm font-bold">Amina & Emir</p>
-        </div>
-        <div className="mt-3 flex items-center gap-1.5 rounded-full bg-[#f5f1e8]/6 px-3 py-1.5">
-          <span className="h-3 w-3 rounded-full border border-[#f5f1e8]/30" />
-          <span className="text-[9px] text-[#f5f1e8]/40">Adnan Hodžić...</span>
-        </div>
-        <div className="mt-3 grid grid-cols-3 gap-1.5">
-          {tables.map((table) => (
-            <div
-              key={table.n}
-              className={`flex flex-col items-center rounded-xl py-2.5 ${
-                table.n === '5'
-                  ? 'bg-gold text-[#141210]'
-                  : table.vip
-                    ? 'border border-gold/40 bg-gold/8'
-                    : 'bg-[#f5f1e8]/6'
-              }`}
-            >
-              <span className={`font-display text-sm font-bold ${table.n === '5' ? '' : table.vip ? 'text-gold' : ''}`}>
-                {table.n}
-              </span>
-              {table.n === '5' && <span className="text-[7px] font-bold uppercase">Tvoj sto</span>}
-              {table.vip && table.n !== '5' && <span className="text-[7px] uppercase text-gold/70">VIP</span>}
-            </div>
-          ))}
-        </div>
-      </div>
-    </PhoneFrame>
-  );
-}
-
-// ================================================================
-// Brojevi — ogromne cifre
-// ================================================================
-
-function Numbers() {
-  const t = useTranslations('landing.hero');
-  const items = [
-    { value: 50, suffix: '+', label: t('statEvents') },
-    { value: 10000, suffix: '+', label: t('statMemories') },
-    { value: 24, suffix: '/7', label: t('statSupport') },
-  ];
-
-  return (
-    <section className="border-y border-[#f5f1e8]/6 px-6 py-24">
-      <div className="mx-auto grid max-w-6xl gap-12 sm:grid-cols-3">
-        {items.map((item, i) => (
-          <BigNumber key={i} {...item} delay={i * 0.1} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function BigNumber({
-  value,
-  suffix,
-  label,
-  delay,
-}: {
-  value: number;
-  suffix: string;
-  label: string;
-  delay: number;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: '-80px' });
-  const [display, setDisplay] = useState(0);
-
-  useEffect(() => {
-    if (!inView) return;
-    const start = performance.now();
-    let raf: number;
-    const tick = (now: number) => {
-      const p = Math.min(1, (now - start) / 2000);
-      setDisplay(Math.round(value * (1 - Math.pow(1 - p, 4))));
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [inView, value]);
-
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.6, delay }}
-      className="text-center sm:text-left"
-    >
-      <p className="font-display text-[clamp(3.5rem,7vw,6rem)] font-bold leading-none text-gold">
-        {display.toLocaleString('bs-BA')}
-        <span className="text-[0.5em] text-gold/60">{suffix}</span>
-      </p>
-      <p className="mt-3 text-xs uppercase tracking-[0.25em] text-[#f5f1e8]/40">{label}</p>
-    </motion.div>
-  );
-}
-
-// ================================================================
-// Galerija — dvije marquee trake u suprotnim smjerovima
-// ================================================================
-
-function GalleryMarquee() {
-  const t = useTranslations('landing.galleryStrip');
-  const { data: images } = useQuery({
-    queryKey: ['publicGallery'],
-    queryFn: () => api<PublicImage[]>('/api/public/gallery'),
-    staleTime: 60_000,
-  });
-
-  if (!images?.length) return null;
-
-  const row1 = images.slice(0, Math.ceil(images.length / 2));
-  const row2 = images.slice(Math.ceil(images.length / 2));
-  if (!row2.length) row2.push(...row1);
-
-  return (
-    <section id="galerija" className="scroll-mt-20 overflow-hidden py-32">
-      <div className="mx-auto mb-14 max-w-6xl px-6">
-        <SectionLabel index="02" label={t('overline')} />
-        <h2 className="mt-4 font-display text-4xl font-bold sm:text-6xl">{t('title')}</h2>
-      </div>
-
-      <div className="marquee-pause space-y-4">
-        <MarqueeRow images={[...row1, ...row1, ...row1]} reverse={false} />
-        <MarqueeRow images={[...row2, ...row2, ...row2]} reverse />
-      </div>
-    </section>
-  );
-}
-
-function MarqueeRow({ images, reverse }: { images: PublicImage[]; reverse: boolean }) {
-  return (
-    <div className="overflow-hidden">
-      <div className={`flex w-max gap-4 ${reverse ? 'animate-marquee-reverse' : 'animate-marquee-slow'}`}>
-        {images.map((image, i) => (
-          <div key={`${image.id}-${i}`} className="group relative h-52 shrink-0 overflow-hidden rounded-2xl sm:h-64">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imageUrl(image.thumbPath)!}
-              alt={image.event.name}
-              loading="lazy"
-              className="h-full w-auto object-cover transition-transform duration-700 group-hover:scale-105"
-              style={{ aspectRatio: `${image.width} / ${image.height}` }}
-            />
-            <div className="pointer-events-none absolute inset-0 flex items-end bg-gradient-to-t from-[#0c0b09]/70 to-transparent p-3.5 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-              <p className="flex items-center gap-1.5 text-xs font-medium">
-                <Heart className="h-3 w-3 fill-gold text-gold" />
-                {image.event.clientNames || image.event.name}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ================================================================
-// Testimonijali
-// ================================================================
-
-function Testimonials() {
-  const t = useTranslations('landing.testimonials');
-  const quotes = [
-    { text: t('q1'), author: t('q1a'), info: t('q1i') },
-    { text: t('q2'), author: t('q2a'), info: t('q2i') },
-    { text: t('q3'), author: t('q3a'), info: t('q3i') },
-  ];
-  const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    const timer = setInterval(() => setIndex((i) => (i + 1) % quotes.length), 6500);
-    return () => clearInterval(timer);
-  }, [quotes.length]);
-
-  return (
-    <section className="border-t border-[#f5f1e8]/6 px-6 py-32">
-      <div className="mx-auto max-w-4xl">
-        <SectionLabel index="03" label={t('overline')} />
-
-        <div className="relative mt-12 min-h-[17rem] sm:min-h-[14rem]">
-          <AnimatePresence mode="wait">
-            <motion.figure
-              key={index}
-              initial={{ opacity: 0, y: 28 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -28 }}
-              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <blockquote className="font-display text-2xl font-semibold leading-snug text-[#f5f1e8]/90 sm:text-4xl">
-                <span className="mr-2 text-gold">"</span>
-                {quotes[index].text}
-                <span className="ml-1 text-gold">"</span>
-              </blockquote>
-              <figcaption className="mt-8 flex items-center gap-4">
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gold/12 font-display font-bold text-gold">
-                  {quotes[index].author[0]}
-                </span>
-                <span>
-                  <p className="font-semibold text-gold">{quotes[index].author}</p>
-                  <p className="text-xs uppercase tracking-wider text-[#f5f1e8]/35">
-                    {quotes[index].info}
-                  </p>
-                </span>
-              </figcaption>
-            </motion.figure>
-          </AnimatePresence>
-        </div>
-
-        <div className="mt-10 flex gap-2">
-          {quotes.map((_, i) => (
-            <button key={i} onClick={() => setIndex(i)} className="group p-1" aria-label={`Testimonijal ${i + 1}`}>
-              <span
-                className={`block h-1.5 rounded-full transition-all duration-300 ${
-                  i === index ? 'w-8 bg-gold' : 'w-1.5 bg-[#f5f1e8]/20 group-hover:bg-[#f5f1e8]/40'
-                }`}
-              />
-            </button>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ================================================================
-// FAQ
-// ================================================================
-
-function Faq() {
-  const t = useTranslations('landing.faq');
-  const [open, setOpen] = useState<number | null>(0);
-  const items = [
-    { q: t('q1'), a: t('a1') },
-    { q: t('q2'), a: t('a2') },
-    { q: t('q3'), a: t('a3') },
-    { q: t('q4'), a: t('a4') },
-  ];
-
-  return (
-    <section id="faq" className="scroll-mt-20 border-t border-[#f5f1e8]/6 px-6 py-32">
-      <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.8fr_1.2fr]">
-        <div>
-          <SectionLabel index="04" label={t('overline')} />
-          <h2 className="mt-4 font-display text-4xl font-bold sm:text-5xl">{t('title')}</h2>
-        </div>
-
-        <div className="space-y-3">
-          {items.map((item, i) => (
+    <section className="px-4 py-20 sm:px-6 sm:py-28">
+      <div className="mx-auto max-w-6xl">
+        <SectionHead index="02" overline={t('overline')} title={t('title')} />
+        <div className="mt-14 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+          {steps.map((s, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-40px' }}
-              transition={{ duration: 0.5, delay: i * 0.06 }}
-              className={`overflow-hidden rounded-2xl border transition-colors ${
-                open === i ? 'border-gold/35 bg-[#f5f1e8]/[0.04]' : 'border-[#f5f1e8]/8 bg-[#f5f1e8]/[0.02]'
-              }`}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1, duration: 0.6 }}
+              className="relative border-t border-white/10 pt-5"
             >
-              <button
-                onClick={() => setOpen(open === i ? null : i)}
-                className="flex w-full items-center justify-between px-6 py-5 text-left"
-              >
-                <span className="pr-4 font-semibold">{item.q}</span>
-                <motion.span animate={{ rotate: open === i ? 180 : 0 }} transition={{ duration: 0.25 }}>
-                  <ChevronDown className="h-4 w-4 shrink-0 text-gold" />
-                </motion.span>
-              </button>
-              <AnimatePresence initial={false}>
-                {open === i && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3, ease: 'easeInOut' }}
-                  >
-                    <p className="px-6 pb-6 text-sm leading-relaxed text-[#f5f1e8]/50">{item.a}</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <div className="absolute -top-[2px] left-0 h-[2px] w-10" style={{ background: GOLD }} />
+              <div className="font-display text-4xl font-bold text-outline-gold">0{i + 1}</div>
+              <h4 className="mt-3 font-display text-lg font-bold">{s.t}</h4>
+              <p className="mt-2 text-sm leading-relaxed opacity-50">{s.d}</p>
             </motion.div>
           ))}
         </div>
@@ -1062,132 +785,307 @@ function Faq() {
   );
 }
 
-// ================================================================
-// Finalni CTA + footer
-// ================================================================
+/* ════════════════════════ NUMBERS ════════════════════════ */
 
-function FinalCta() {
-  const t = useTranslations('landing.contact');
-  const tn = useTranslations('landing.nav');
-  const th = useTranslations('landing.hero');
-  const tf = useTranslations('landing.footer');
+function Numbers() {
+  const t = useTranslations('landing.hero');
+  return (
+    <section className="relative overflow-hidden px-4 py-24 sm:px-6" style={{ background: '#0d0d0e' }}>
+      <div
+        className="pointer-events-none absolute inset-0 opacity-20"
+        style={{ background: `radial-gradient(circle at 50% 120%, ${GOLD}, transparent 60%)` }}
+      />
+      <div className="relative mx-auto grid max-w-5xl gap-10 text-center sm:grid-cols-3">
+        <BigNum value={500} suffix="+" label={t('statEvents')} />
+        <BigNum value={120000} suffix="+" label={t('statMemories')} />
+        <BigNum value={100} suffix="%" label={t('trustedBy')} small />
+      </div>
+    </section>
+  );
+}
+
+function BigNum({ value, suffix, label, small }: { value: number; suffix: string; label: string; small?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end end'] });
-  const yGlow = useTransform(scrollYProgress, [0, 1], [80, 0]);
-  const { data: galleryImages } = useQuery({
-    queryKey: ['publicGallery'],
-    queryFn: () => api<PublicImage[]>('/api/public/gallery'),
-    staleTime: 60_000,
-  });
+  const inView = useInView(ref, { once: true });
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    if (!inView) return;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / 2000, 1);
+      setN(Math.round(value * (1 - Math.pow(1 - p, 4))));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [inView, value]);
+  const fmt = n >= 1000 ? `${(n / 1000).toFixed(0)}k` : String(n);
+  return (
+    <div ref={ref}>
+      <div className="font-display font-bold leading-none" style={{ color: GOLD, fontSize: 'clamp(3rem, 8vw, 6rem)' }}>
+        {fmt}
+        {suffix}
+      </div>
+      <div className={`mx-auto mt-3 ${small ? 'max-w-[16rem] text-xs' : 'text-sm'} uppercase tracking-widest opacity-50`}>
+        {label}
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════ GALLERY STRIP ════════════════════════ */
+
+function GalleryStrip({ shots }: { shots: GalleryShot[] }) {
+  const t = useTranslations('landing.galleryStrip');
+  const rowA = [...shots, ...shots].slice(0, 16);
+  const rowB = [...shots].reverse();
+  const rowBFull = [...rowB, ...rowB].slice(0, 16);
 
   return (
-    <section id="kontakt" ref={ref} className="relative scroll-mt-20 overflow-hidden border-t border-[#f5f1e8]/6">
-      <motion.div style={{ y: yGlow }} className="pointer-events-none absolute inset-0">
-        <div className="absolute bottom-[-14rem] left-1/2 h-[30rem] w-[64rem] -translate-x-1/2 rounded-full bg-gold/12 blur-3xl" />
-      </motion.div>
-
-      <div className="relative mx-auto max-w-6xl px-6 pb-12 pt-32 text-center">
-        <motion.p
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="text-xs uppercase tracking-[0.35em] text-gold"
-        >
-          {t('overline')}
-        </motion.p>
-
-        <motion.h2
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-6 font-display text-[clamp(2.6rem,7vw,6.5rem)] font-bold leading-[1.02]"
-        >
-          {t('finalTitle1')}
-          <br />
-          <span className="italic text-gold">{t('finalTitle2')}</span>
-        </motion.h2>
-
-        <motion.p
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.2 }}
-          className="mt-6 text-[#f5f1e8]/45"
-        >
-          {t('sub')}
-        </motion.p>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.3, duration: 0.6 }}
-          className="mt-10"
-        >
-          <a
-            href={`tel:${CONTACT_PHONE.replaceAll(' ', '')}`}
-            className="btn-glossy group inline-flex items-center gap-3 rounded-full bg-gold py-2.5 pl-8 pr-2.5 text-lg font-semibold text-[#141210]"
-          >
-            {t('call')} · {CONTACT_PHONE}
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#141210]/90 text-gold transition-transform duration-300 ease-out group-hover:rotate-[360deg]">
-              <Phone className="h-4 w-4" />
-            </span>
-          </a>
-          <p className="mt-7 text-xs text-[#f5f1e8]/25">{th('trustedBy')}</p>
-        </motion.div>
-
-        {/* Footer */}
-        <div className="mt-28 flex flex-col items-center justify-between gap-6 border-t border-[#f5f1e8]/8 pt-8 text-left sm:flex-row">
-          <div>
-            <p className="font-display text-lg font-bold">
-              Special Day<span className="text-gold">.</span>
-            </p>
-            <p className="mt-1 text-xs text-[#f5f1e8]/30">
-              © {new Date().getFullYear()} — {tf('rights')}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-[#f5f1e8]/40">
-            <a href="#proizvodi" className="transition-colors hover:text-gold">
-              {tn('products')}
-            </a>
-            {!!galleryImages?.length && (
-              <a href="#galerija" className="transition-colors hover:text-gold">
-                {tn('gallery')}
-              </a>
-            )}
-            <a href="#faq" className="transition-colors hover:text-gold">
-              {tn('faq')}
-            </a>
-            <a
-              href={`tel:${CONTACT_PHONE.replaceAll(' ', '')}`}
-              className="flex items-center gap-1.5 transition-colors hover:text-gold"
-            >
-              <Phone className="h-3 w-3" /> {CONTACT_PHONE}
-            </a>
-          </div>
+    <section id="galerija" className="overflow-hidden py-20 sm:py-28">
+      <div className="mx-auto mb-12 max-w-6xl px-4 sm:px-6">
+        <SectionHead index="03" overline={t('overline')} title={t('title')} />
+      </div>
+      <div className="space-y-4">
+        <div className="flex overflow-hidden">
+          <StripRow shots={rowA} className="animate-marquee-slow" />
+          <StripRow shots={rowA} className="animate-marquee-slow" aria />
+        </div>
+        <div className="flex overflow-hidden">
+          <StripRow shots={rowBFull} className="animate-marquee-reverse" />
+          <StripRow shots={rowBFull} className="animate-marquee-reverse" aria />
         </div>
       </div>
     </section>
   );
 }
 
-// ================================================================
-// Pomoćne
-// ================================================================
-
-function SectionLabel({ index, label }: { index: string; label: string }) {
+function StripRow({ shots, className, aria }: { shots: GalleryShot[]; className: string; aria?: boolean }) {
   return (
-    <motion.p
-      initial={{ opacity: 0, x: -20 }}
-      whileInView={{ opacity: 1, x: 0 }}
+    <div className={`flex shrink-0 gap-4 pr-4 ${className}`} aria-hidden={aria}>
+      {shots.map((s, i) => (
+        <div key={`${s.id}-${i}`} className="group relative h-52 w-72 shrink-0 overflow-hidden rounded-2xl sm:h-64 sm:w-96">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl(s.thumbPath || s.filePath)!}
+            alt={s.event?.clientNames ?? ''}
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+          {(s.event?.clientNames || s.event?.name) && (
+            <div className="absolute bottom-3 left-3 translate-y-2 opacity-0 transition-all group-hover:translate-y-0 group-hover:opacity-100">
+              <p className="font-display text-sm font-bold">{s.event?.clientNames}</p>
+              <p className="text-[11px] opacity-70">{s.event?.name}</p>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ════════════════════════ TESTIMONIALS ════════════════════════ */
+
+function Testimonials() {
+  const t = useTranslations('landing.testimonials');
+  const quotes = [
+    { q: t('q1'), a: t('q1a'), i: t('q1i') },
+    { q: t('q2'), a: t('q2a'), i: t('q2i') },
+    { q: t('q3'), a: t('q3a'), i: t('q3i') },
+  ];
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setIdx((v) => (v + 1) % quotes.length), 6000);
+    return () => clearInterval(id);
+  }, [quotes.length]);
+
+  return (
+    <section className="px-4 py-24 sm:px-6 sm:py-32">
+      <div className="mx-auto max-w-4xl">
+        <SectionHead index="04" overline={t('overline')} title={t('title')} center />
+        <div className="relative mt-14 min-h-[16rem] text-center">
+          <AnimatePresence mode="wait">
+            <motion.blockquote
+              key={idx}
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -24 }}
+              transition={{ duration: 0.5 }}
+            >
+              <div className="mb-6 flex justify-center gap-1">
+                {[0, 1, 2, 3, 4].map((s) => (
+                  <Star key={s} className="h-4 w-4" style={{ color: GOLD, fill: GOLD }} />
+                ))}
+              </div>
+              <p className="font-display text-2xl font-medium leading-snug sm:text-3xl">
+                “{quotes[idx].q}”
+              </p>
+              <div className="mt-8">
+                <div className="font-semibold" style={{ color: GOLD }}>{quotes[idx].a}</div>
+                <div className="mt-1 text-xs uppercase tracking-widest opacity-40">{quotes[idx].i}</div>
+              </div>
+            </motion.blockquote>
+          </AnimatePresence>
+        </div>
+        <div className="mt-6 flex justify-center gap-2">
+          {quotes.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setIdx(i)}
+              className="h-1.5 rounded-full transition-all"
+              style={{ width: i === idx ? 32 : 8, background: i === idx ? GOLD : 'rgba(255,255,255,0.2)' }}
+              aria-label={`Utisak ${i + 1}`}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ════════════════════════ FAQ ════════════════════════ */
+
+function Faq() {
+  const t = useTranslations('landing.faq');
+  const items = [
+    { q: t('q1'), a: t('a1') },
+    { q: t('q2'), a: t('a2') },
+    { q: t('q3'), a: t('a3') },
+    { q: t('q4'), a: t('a4') },
+  ];
+  const [open, setOpen] = useState(0);
+
+  return (
+    <section id="pitanja" className="px-4 py-20 sm:px-6 sm:py-28">
+      <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.8fr_1.2fr]">
+        <SectionHead index="05" overline={t('overline')} title={t('title')} />
+        <div className="space-y-3">
+          {items.map((it, i) => {
+            const active = open === i;
+            return (
+              <div
+                key={i}
+                className="overflow-hidden rounded-2xl border transition-colors"
+                style={{ borderColor: active ? `${GOLD}55` : 'rgba(255,255,255,0.08)', background: active ? `${GOLD}0d` : 'transparent' }}
+              >
+                <button
+                  onClick={() => setOpen(active ? -1 : i)}
+                  className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+                >
+                  <span className="font-display text-base font-semibold sm:text-lg">{it.q}</span>
+                  <motion.span animate={{ rotate: active ? 45 : 0 }} className="shrink-0" style={{ color: GOLD }}>
+                    <Plus className="h-5 w-5" />
+                  </motion.span>
+                </button>
+                <AnimatePresence initial={false}>
+                  {active && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <p className="px-5 pb-5 text-sm leading-relaxed opacity-60">{it.a}</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ════════════════════════ FINAL CTA + FOOTER ════════════════════════ */
+
+function FinalCta({ hasGallery }: { hasGallery: boolean }) {
+  const t = useTranslations('landing.contact');
+  const tn = useTranslations('landing.nav');
+  const tf = useTranslations('landing.footer');
+  const ref = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end end'] });
+  const yGlow = useTransform(scrollYProgress, [0, 1], [120, 0]);
+
+  return (
+    <footer id="kontakt" ref={ref} className="relative overflow-hidden px-4 pt-24 sm:px-6 sm:pt-36">
+      <motion.div style={{ y: yGlow }} className="pointer-events-none absolute inset-x-0 bottom-0 h-[30rem]">
+        <div
+          className="absolute bottom-0 left-1/2 h-[30rem] w-[50rem] -translate-x-1/2 rounded-full opacity-25 blur-[120px]"
+          style={{ background: `radial-gradient(circle, ${GOLD}, transparent 65%)` }}
+        />
+      </motion.div>
+
+      <div className="relative mx-auto max-w-4xl text-center">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: GOLD }}>
+          {t('overline')}
+        </span>
+        <h2 className="mt-5 font-display font-bold leading-[0.95]" style={{ fontSize: 'clamp(2.4rem, 7vw, 5.5rem)' }}>
+          {t('finalTitle1')}<br />
+          <span style={{ fontStyle: 'italic', color: GOLD }}>{t('finalTitle2')}</span>
+        </h2>
+        <p className="mx-auto mt-6 max-w-md text-base opacity-55">{t('sub')}</p>
+        <a
+          href={telHref}
+          className="btn-glossy group mt-9 inline-flex items-center gap-2.5 rounded-full px-8 py-4 text-base font-bold text-black"
+          style={{ background: GOLD }}
+        >
+          <Phone className="h-5 w-5" />
+          {t('call')} · {CONTACT_PHONE}
+        </a>
+      </div>
+
+      <div className="relative mx-auto mt-24 flex max-w-6xl flex-col items-center justify-between gap-6 border-t border-white/8 py-8 sm:flex-row">
+        <div className="flex items-center gap-2">
+          <span className="font-display text-lg font-bold">Special Day</span>
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: GOLD }} />
+        </div>
+        <div className="flex items-center gap-6 text-xs uppercase tracking-widest opacity-50">
+          <a href="#proizvodi" className="transition-opacity hover:opacity-100">{tn('products')}</a>
+          {hasGallery && <a href="#galerija" className="transition-opacity hover:opacity-100">{tn('gallery')}</a>}
+          <a href="#pitanja" className="transition-opacity hover:opacity-100">{tn('faq')}</a>
+          <a href={telHref} className="flex items-center gap-1.5 transition-opacity hover:opacity-100">
+            <Phone className="h-3 w-3" /> {CONTACT_PHONE}
+          </a>
+        </div>
+        <p className="text-[11px] opacity-30">© {new Date().getFullYear()} · {tf('rights')}</p>
+      </div>
+    </footer>
+  );
+}
+
+/* ════════════════════════ SHARED ════════════════════════ */
+
+function SectionHead({
+  index,
+  overline,
+  title,
+  center,
+}: {
+  index: string;
+  overline: string;
+  title: string;
+  center?: boolean;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      transition={{ duration: 0.5 }}
-      className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-gold"
+      transition={{ duration: 0.6 }}
+      className={center ? 'text-center' : ''}
     >
-      <span className="font-display text-sm">{index}</span>
-      <span className="h-px w-10 bg-gold/50" />
-      {label}
-    </motion.p>
+      <div className={`flex items-center gap-3 ${center ? 'justify-center' : ''}`}>
+        <span className="font-mono text-xs font-bold" style={{ color: GOLD }}>{index}</span>
+        <span className="h-px w-8" style={{ background: GOLD }} />
+        <span className="text-[11px] font-semibold uppercase tracking-[0.28em] opacity-60">{overline}</span>
+      </div>
+      <h2 className="mt-4 max-w-2xl font-display font-bold leading-[1.05]" style={{ fontSize: 'clamp(1.9rem, 5vw, 3.5rem)' }}>
+        {title}
+      </h2>
+    </motion.div>
   );
 }

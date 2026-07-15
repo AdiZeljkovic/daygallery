@@ -31,6 +31,10 @@ export const updateItemSchema = createItemSchema.partial().extend({
   // inventar: null = ne prati se stanje
   stockQty: z.coerce.number().int().min(0).max(999999).nullable().optional(),
   lowStockAt: z.coerce.number().int().min(0).max(999999).nullable().optional(),
+  // pića na čašu: zaliha u litrama + veličina čaše (ml)
+  servesByVolume: z.boolean().optional(),
+  stockLiters: z.coerce.number().min(0).max(99999).nullable().optional(),
+  servingMl: z.coerce.number().int().min(1).max(5000).nullable().optional(),
   translations: z
     .array(
       z.object({

@@ -44,7 +44,10 @@ venuesRouter.get('/:id', requireVenueAccess(), async (req, res, next) => {
   try {
     const venue = await prisma.venue.findUnique({
       where: { id: Number(req.params.id) },
-      include: { menus: { select: { id: true, name: true, isActive: true } } },
+      include: {
+        menus: { select: { id: true, name: true, isActive: true } },
+        owner: { select: { id: true, name: true, email: true } },
+      },
     });
     if (!venue) return res.status(404).json({ error: 'Objekat nije pronađen' });
     res.json(venue);

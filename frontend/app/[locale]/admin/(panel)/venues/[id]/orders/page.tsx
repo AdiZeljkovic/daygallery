@@ -14,6 +14,10 @@ import {
   Clock,
   Wifi,
   WifiOff,
+  Calendar,
+  BarChart3,
+  ListOrdered,
+  TrendingUp,
 } from 'lucide-react';
 import type { OrderDTO, OrderStatus } from '@platform/shared';
 import { api } from '@/lib/api';
@@ -40,18 +44,38 @@ export default function OrdersDashboardPage({ params }: { params: Promise<{ id: 
   const venueId = Number(venueIdStr);
   const qc = useQueryClient();
 
+  const [view, setView] = useState<'live' | 'history'>('live');
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all');
+  const [day, setDay] = useState<string>(''); // '' = svi (uživo); yyyy-mm-dd = tačan dan
+  const [period, setPeriod] = useState<'day' | 'month'>('day');
   const [soundOn, setSoundOn] = useState(false);
   const [connected, setConnected] = useState(false);
   const [flashId, setFlashId] = useState<number | null>(null);
 
   const { data: orders, isLoading } = useQuery({
-    queryKey: ['orders', venueId, filter],
+    queryKey: ['orders', venueId, filter, day],
+    queryFn: () => {
+      const p = new URLSearchParams();
+      if (filter !== 'all') p.set('status', filter);
+      if (day) {
+        p.set('from', `${day}T00:00:00`);
+        p.set('to', `${day}T23:59:59`);
+      }
+      const qs = p.toString();
+      return api<(OrderDTO & { currency?: string })[]>(
+        `/api/venues/${venueId}/orders${qs ? `?${qs}` : ''}`
+      );
+    },
+    refetchInterval: day ? false : 30_000, // historijski dan se ne mijenja
+  });
+
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['orderStats', venueId, period],
     queryFn: () =>
-      api<(OrderDTO & { currency?: string })[]>(
-        `/api/venues/${venueId}/orders${filter === 'all' ? '' : `?status=${filter}`}`
+      api<{ bucket: string; orders: number; revenue: string }[]>(
+        `/api/venues/${venueId}/orders/stats?period=${period}`
       ),
-    refetchInterval: 30_000, // fallback ako socket zakaže
+    enabled: view === 'history',
   });
 
   const { data: venue } = useQuery({
@@ -137,8 +161,38 @@ export default function OrdersDashboardPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="max-w-3xl">
+      {/* View toggle: Uživo / Historija */}
+      <div className="mb-4 inline-flex rounded-full border border-ink/10 bg-ink/[0.03] p-0.5 text-sm font-semibold">
+        <button
+          onClick={() => setView('live')}
+          className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${
+            view === 'live' ? 'bg-ink text-cream shadow-soft' : 'text-ink/50 hover:text-ink'
+          }`}
+        >
+          <ListOrdered className="h-4 w-4" /> Narudžbe
+        </button>
+        <button
+          onClick={() => setView('history')}
+          className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${
+            view === 'history' ? 'bg-ink text-cream shadow-soft' : 'text-ink/50 hover:text-ink'
+          }`}
+        >
+          <BarChart3 className="h-4 w-4" /> Historija
+        </button>
+      </div>
+
+      {view === 'history' ? (
+        <HistoryView
+          stats={stats}
+          loading={statsLoading}
+          period={period}
+          setPeriod={setPeriod}
+          currency={currency}
+        />
+      ) : (
+        <>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {FILTERS.map((f) => (
             <button
               key={f.value}
@@ -157,6 +211,25 @@ export default function OrdersDashboardPage({ params }: { params: Promise<{ id: 
               )}
             </button>
           ))}
+          <div className="flex items-center gap-1.5 rounded-full bg-ink/5 px-3 py-1.5">
+            <Calendar className="h-3.5 w-3.5 text-ink/45" />
+            <input
+              type="date"
+              value={day}
+              onChange={(e) => setDay(e.target.value)}
+              className="bg-transparent text-xs font-medium text-ink/70 outline-none"
+              title="Prikaži narudžbe za tačan dan"
+            />
+            {day && (
+              <button
+                onClick={() => setDay('')}
+                className="rounded-full p-0.5 text-ink/40 hover:bg-ink/10 hover:text-ink"
+                title="Nazad na uživo"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -287,6 +360,109 @@ export default function OrdersDashboardPage({ params }: { params: Promise<{ id: 
               </motion.div>
             ))}
           </AnimatePresence>
+        </div>
+      )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function HistoryView({
+  stats,
+  loading,
+  period,
+  setPeriod,
+  currency,
+}: {
+  stats: { bucket: string; orders: number; revenue: string }[] | undefined;
+  loading: boolean;
+  period: 'day' | 'month';
+  setPeriod: (p: 'day' | 'month') => void;
+  currency: string;
+}) {
+  const totalOrders = stats?.reduce((s, r) => s + r.orders, 0) ?? 0;
+  const totalRevenue = stats?.reduce((s, r) => s + parseFloat(r.revenue), 0) ?? 0;
+
+  const fmtBucket = (b: string) => {
+    if (period === 'month') {
+      const [y, m] = b.split('-');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Avg', 'Sep', 'Okt', 'Nov', 'Dec'];
+      return `${months[Number(m) - 1] ?? m} ${y}`;
+    }
+    const d = new Date(`${b}T00:00:00`);
+    return d.toLocaleDateString('bs-BA', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  return (
+    <div>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-full border border-ink/10 bg-ink/[0.03] p-0.5 text-xs font-semibold">
+          {(['day', 'month'] as const).map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`rounded-full px-4 py-1.5 transition-colors ${
+                period === p ? 'bg-gold text-neutral-900' : 'text-ink/50 hover:text-ink'
+              }`}
+            >
+              {p === 'day' ? 'Po danu' : 'Po mjesecu'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Sažetak */}
+      <div className="mb-5 grid grid-cols-2 gap-3">
+        <div className="rounded-2xl border border-ink/8 bg-white p-4 shadow-soft">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-ink/45">
+            <ListOrdered className="h-3.5 w-3.5" /> Ukupno narudžbi
+          </div>
+          <p className="mt-1 font-display text-2xl font-bold">{totalOrders}</p>
+        </div>
+        <div className="rounded-2xl border border-ink/8 bg-white p-4 shadow-soft">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-ink/45">
+            <TrendingUp className="h-3.5 w-3.5" /> Ukupan promet
+          </div>
+          <p className="mt-1 font-display text-2xl font-bold text-gold-dark">
+            {totalRevenue.toFixed(2)} {currency}
+          </p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <Loader2 className="h-6 w-6 animate-spin text-gold-dark" />
+        </div>
+      ) : !stats?.length ? (
+        <div className="rounded-2xl border border-dashed border-ink/15 py-20 text-center">
+          <BarChart3 className="mx-auto mb-3 h-8 w-8 text-ink/20" />
+          <p className="text-ink/40">Još nema prometa za prikaz.</p>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-ink/8 bg-white shadow-soft">
+          {stats.map((r, i) => {
+            const max = Math.max(...stats.map((s) => parseFloat(s.revenue)), 1);
+            const pct = (parseFloat(r.revenue) / max) * 100;
+            return (
+              <div
+                key={r.bucket}
+                className={`relative flex items-center justify-between gap-3 px-4 py-3 ${i > 0 ? 'border-t border-ink/6' : ''}`}
+              >
+                <div
+                  className="absolute inset-y-0 left-0 bg-gold/[0.07]"
+                  style={{ width: `${pct}%` }}
+                />
+                <span className="relative text-sm font-medium capitalize">{fmtBucket(r.bucket)}</span>
+                <span className="relative flex items-center gap-4">
+                  <span className="text-xs text-ink/45">{r.orders} nar.</span>
+                  <span className="font-display text-sm font-bold text-gold-dark">
+                    {parseFloat(r.revenue).toFixed(2)} {currency}
+                  </span>
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

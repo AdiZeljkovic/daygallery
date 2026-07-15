@@ -50,9 +50,10 @@ export function toOrderDTO(order: {
 export async function createOrder(venueSlug: string, input: CreateOrderInput) {
   const venue = await prisma.venue.findUnique({
     where: { slug: venueSlug },
-    select: { id: true, isActive: true, wheelEnabled: true, wheelPercentage: true },
+    select: { id: true, isActive: true, orderingEnabled: true, wheelEnabled: true, wheelPercentage: true },
   });
   if (!venue || !venue.isActive) throw new HttpError(404, 'Objekat nije pronađen');
+  if (!venue.orderingEnabled) throw new HttpError(403, 'Naručivanje je trenutno onemogućeno');
 
   const itemIds = input.items.map((i) => i.itemId);
   const dbItems = await prisma.menuItem.findMany({
@@ -159,21 +160,45 @@ async function deductStock(
     const result = await prisma.$transaction(async (tx) => {
       const item = await tx.menuItem.findUnique({
         where: { id: line.menuItemId! },
-        select: { id: true, name: true, stockQty: true, lowStockAt: true },
+        select: {
+          id: true,
+          name: true,
+          stockQty: true,
+          lowStockAt: true,
+          servesByVolume: true,
+          stockLiters: true,
+          servingMl: true,
+        },
       });
-      if (!item || item.stockQty === null) return null; // stanje se ne prati
+      if (!item) return null;
 
+      // Pića na čašu: zaliha u litrama, odbija se servingMl po komadu
+      if (item.servesByVolume) {
+        if (item.stockLiters === null || !item.servingMl) return null; // ne prati litražu
+        const usedLiters = new D(item.servingMl).mul(line.quantity).div(1000);
+        const newLiters = D.max(new D(0), item.stockLiters.sub(usedLiters));
+        const isOut = newLiters.lte(0);
+        await tx.menuItem.update({
+          where: { id: item.id },
+          data: { stockLiters: newLiters, ...(isOut ? { isAvailable: false } : {}) },
+        });
+        // prag za litražu tumačimo kao lowStockAt litara (ako je zadan)
+        return { id: item.id, name: item.name, byVolume: true, isOut, newQty: newLiters.toNumber(), lowStockAt: item.lowStockAt };
+      }
+
+      // Komadno stanje
+      if (item.stockQty === null) return null; // stanje se ne prati
       const newQty = Math.max(0, item.stockQty - line.quantity);
       await tx.menuItem.update({
         where: { id: item.id },
         data: { stockQty: newQty, ...(newQty === 0 ? { isAvailable: false } : {}) },
       });
-      return { ...item, newQty };
+      return { id: item.id, name: item.name, byVolume: false, isOut: newQty === 0, newQty, lowStockAt: item.lowStockAt };
     });
 
     if (!result) continue;
 
-    if (result.newQty === 0) {
+    if (result.isOut) {
       io?.to(`venue:${venueId}`).emit('stock:out', { itemId: result.id, name: result.name });
     } else if (result.lowStockAt !== null && result.newQty <= result.lowStockAt) {
       io?.to(`venue:${venueId}`).emit('stock:low', {

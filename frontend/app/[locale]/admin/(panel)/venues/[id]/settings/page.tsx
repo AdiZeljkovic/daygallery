@@ -9,6 +9,7 @@ import {
   Check,
   Trash2,
   MessageSquareWarning,
+  ShoppingCart,
 } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { imageUrl } from '@/lib/menuTypes';
@@ -24,6 +25,7 @@ interface VenueSettings {
   wheelPercentage: number | null;
   promoImagePath: string | null;
   promoCaption: string | null;
+  orderingEnabled: boolean;
 }
 
 interface Feedback {
@@ -52,6 +54,7 @@ export default function VenueSettingsPage({ params }: { params: Promise<{ id: st
   // form state
   const [reviewUrl, setReviewUrl] = useState('');
   const [reviewGate, setReviewGate] = useState(false);
+  const [orderingEnabled, setOrderingEnabled] = useState(true);
   const [promoCaption, setPromoCaption] = useState('');
   const [promoPath, setPromoPath] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -63,6 +66,7 @@ export default function VenueSettingsPage({ params }: { params: Promise<{ id: st
     if (!venue) return;
     setReviewUrl(venue.googleReviewUrl ?? '');
     setReviewGate(venue.reviewGateEnabled);
+    setOrderingEnabled(venue.orderingEnabled);
     setPromoCaption(venue.promoCaption ?? '');
     setPromoPath(venue.promoImagePath ?? null);
   }, [venue]);
@@ -74,6 +78,7 @@ export default function VenueSettingsPage({ params }: { params: Promise<{ id: st
         body: JSON.stringify({
           googleReviewUrl: reviewUrl.trim(),
           reviewGateEnabled: reviewGate,
+          orderingEnabled,
           promoCaption: promoCaption.trim(),
         }),
       }),
@@ -124,6 +129,27 @@ export default function VenueSettingsPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="max-w-2xl space-y-6">
+      {/* Naručivanje */}
+      <Section icon={ShoppingCart} title="Naručivanje">
+        <p className="mb-3 text-sm text-ink/50">
+          Kada je isključeno, gosti i dalje vide meni i cijene, ali nema korpe ni slanja narudžbe.
+        </p>
+        <label className="flex cursor-pointer items-start gap-2.5">
+          <input
+            type="checkbox"
+            checked={orderingEnabled}
+            onChange={(e) => setOrderingEnabled(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-[#d4af37]"
+          />
+          <span className="text-sm">
+            <strong>Naručivanje uključeno</strong>
+            <span className="block text-xs text-ink/45">
+              Gosti mogu dodavati u korpu i slati narudžbe. Isključi za meni „samo za pregled".
+            </span>
+          </span>
+        </label>
+      </Section>
+
       {/* Recenzije */}
       <Section icon={Star} title="Google recenzije">
         <p className="mb-3 text-sm text-ink/50">

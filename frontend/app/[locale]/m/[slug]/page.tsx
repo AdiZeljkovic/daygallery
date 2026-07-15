@@ -20,6 +20,7 @@ import {
   Sparkles,
   Gift,
 } from 'lucide-react';
+import { MENU_LANGS, MENU_LANG_META } from '@platform/shared';
 import { useRouter } from '@/i18n/navigation';
 import { api, ApiError } from '@/lib/api';
 import { useCart } from '@/lib/cart';
@@ -65,6 +66,7 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [wheelOpen, setWheelOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [lang, setLang] = useState<string>(''); // '' dok se ne učita defaultLang
   // osvojena nagrada na kolu sreće (perzistira 1h)
   const [wheelWon, setWheelWon] = useState<{ itemId: number; pct: number } | null>(null);
   const mainRef = useRef<HTMLDivElement>(null);
@@ -74,9 +76,42 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
   const primary = theme.primaryColor ?? '#d4af37';
   const bgImage = theme.backgroundImagePath ? imageUrl(theme.backgroundImagePath) : null;
 
+  // Postavi početni jezik na defaultLang objekta
+  useEffect(() => {
+    if (menu && !lang) setLang(menu.defaultLang || 'bs');
+  }, [menu, lang]);
+
+  // Jezici za koje POSTOJI barem jedan prevod (+ uvijek osnovni bs)
+  const availableLangs = useMemo(() => {
+    const set = new Set<string>(['bs']);
+    menu?.categories.forEach((c) => {
+      c.translations?.forEach((t) => set.add(t.lang));
+      c.items.forEach((i) => i.translations?.forEach((t) => set.add(t.lang)));
+    });
+    return MENU_LANGS.filter((l) => set.has(l));
+  }, [menu]);
+
+  // Kategorije s primijenjenim prevodom za odabrani jezik (fallback na osnovni tekst)
+  const tCategories = useMemo(() => {
+    if (!menu) return [] as MenuCategoryRow[];
+    return menu.categories.map((c) => {
+      const ct = c.translations?.find((t) => t.lang === lang);
+      return {
+        ...c,
+        name: ct?.name || c.name,
+        items: c.items.map((i) => {
+          const it = i.translations?.find((t) => t.lang === lang);
+          return it
+            ? { ...i, name: it.name || i.name, description: it.description ?? null }
+            : i;
+        }),
+      };
+    });
+  }, [menu, lang]);
+
   const featured = useMemo(
-    () => menu?.categories.flatMap((c) => c.items.filter((i) => i.isFeatured)) ?? [],
-    [menu]
+    () => tCategories.flatMap((c) => c.items.filter((i) => i.isFeatured)),
+    [tCategories]
   );
 
   // Kolo sreće: automatski otvori jednom po satu ako je uključeno i ima nagrada
@@ -123,7 +158,7 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
   // Kategorije aktivne grupe + filter pretrage
   const visibleCategories = useMemo(() => {
     if (!menu) return [];
-    let cats = menu.categories;
+    let cats = tCategories;
     if (!search.trim() && activeGroup) cats = cats.filter((c) => c.kind === activeGroup);
     if (search.trim()) {
       const q = normalize(search);
@@ -137,7 +172,7 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
         .filter((c) => c.items.length > 0);
     }
     return cats;
-  }, [menu, search, activeGroup]);
+  }, [menu, tCategories, search, activeGroup]);
 
   const showFeatured = featured.length > 0 && !search && activeGroup !== 'drink';
 
@@ -182,6 +217,8 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
   }
 
   const count = cart.venueSlug === slug ? cart.count() : 0;
+  // Naručivanje isključeno → meni „samo za pregled" (bez korpe, dugmadi, kola sreće)
+  const ordering = menu.orderingEnabled !== false;
 
   return (
     <main className="relative min-h-screen bg-[#0c0b09] text-[#f5f1e8]">
@@ -233,6 +270,16 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
               <p className="mt-1 flex items-center gap-1 text-[11px] opacity-45">
                 <MapPin className="h-3 w-3" /> {menu.address}
               </p>
+            )}
+            {menu.googleReviewUrl && (
+              <button
+                onClick={() => setReviewOpen(true)}
+                className="btn-glossy mt-4 flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-xs font-bold uppercase tracking-wider text-[#0c0b09]"
+                style={{ backgroundColor: primary }}
+              >
+                <Star className="h-3.5 w-3.5" style={{ fill: '#0c0b09' }} />
+                Ostavite recenziju
+              </button>
             )}
           </div>
 
@@ -298,16 +345,6 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
 
           {/* Footer sidebara */}
           <div className="space-y-3 border-t border-white/8 px-5 py-5">
-            {menu.googleReviewUrl && (
-              <button
-                onClick={() => setReviewOpen(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors hover:bg-white/5"
-                style={{ borderColor: `${primary}55`, color: primary }}
-              >
-                <Star className="h-3.5 w-3.5" style={{ fill: primary }} />
-                Ostavite recenziju
-              </button>
-            )}
             {menu.phone && (
               <a
                 href={`tel:${menu.phone}`}
@@ -341,6 +378,16 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
                   <MapPin className="h-3 w-3" /> {menu.address}
                 </p>
               )}
+              {menu.googleReviewUrl && (
+                <button
+                  onClick={() => setReviewOpen(true)}
+                  className="btn-glossy mx-auto mt-4 flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-[#0c0b09]"
+                  style={{ backgroundColor: primary }}
+                >
+                  <Star className="h-3.5 w-3.5" style={{ fill: '#0c0b09' }} />
+                  Ostavite recenziju
+                </button>
+              )}
             </motion.div>
           </header>
 
@@ -364,6 +411,10 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
                   </button>
                 )}
               </div>
+
+              {availableLangs.length > 1 && (
+                <LangSelect lang={lang} setLang={setLang} langs={availableLangs} primary={primary} />
+              )}
             </div>
 
             {/* Mobile: grupe + kategorije pillovi */}
@@ -452,6 +503,7 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
                 currency={menu.currency}
                 primary={primary}
                 highlight
+                ordering={ordering}
                 wheelWon={wheelWon}
                 onAdd={(item) =>
                   cart.add(slug, {
@@ -473,6 +525,7 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
                 currency={menu.currency}
                 primary={primary}
                 compact={category.kind === 'drink'}
+                ordering={ordering}
                 wheelWon={wheelWon}
                 onAdd={(item) =>
                   cart.add(slug, {
@@ -491,16 +544,6 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
 
             {/* Mobile footer */}
             <footer className="mt-14 border-t border-white/8 pt-6 text-center lg:hidden">
-              {menu.googleReviewUrl && (
-                <button
-                  onClick={() => setReviewOpen(true)}
-                  className="mb-4 inline-flex items-center gap-2 rounded-full border px-5 py-2.5 text-xs font-semibold uppercase tracking-wider"
-                  style={{ borderColor: `${primary}55`, color: primary }}
-                >
-                  <Star className="h-3.5 w-3.5" style={{ fill: primary }} />
-                  Ostavite recenziju
-                </button>
-              )}
               {menu.phone && (
                 <a href={`tel:${menu.phone}`} className="flex items-center justify-center gap-2 text-sm opacity-50">
                   <Phone className="h-3.5 w-3.5" /> {menu.phone}
@@ -516,7 +559,7 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
 
       {/* Korpa FAB */}
       <AnimatePresence>
-        {count > 0 && (
+        {ordering && count > 0 && (
           <motion.button
             initial={{ y: 90, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -567,7 +610,7 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
       />
 
       {/* Kolo sreće — floating trigger (ako uključeno, ima nagrada, još nije osvojeno) */}
-      {menu.wheelEnabled && !!menu.wheelPercentage && featured.length > 0 && !wheelWon && !wheelOpen && (
+      {ordering && menu.wheelEnabled && !!menu.wheelPercentage && featured.length > 0 && !wheelWon && !wheelOpen && (
         <motion.button
           initial={{ scale: 0, rotate: -30 }}
           animate={{ scale: 1, rotate: 0 }}
@@ -700,6 +743,7 @@ function MenuSection({
   primary,
   highlight,
   compact,
+  ordering = true,
   wheelWon,
   onAdd,
 }: {
@@ -711,6 +755,7 @@ function MenuSection({
   primary: string;
   highlight?: boolean;
   compact?: boolean; // pića → kompaktne kartice sa malom sličicom
+  ordering?: boolean; // false → bez dugmadi za dodavanje (meni samo za pregled)
   wheelWon?: { itemId: number; pct: number } | null;
   onAdd: (item: MenuItemRow) => void;
 }) {
@@ -741,7 +786,7 @@ function MenuSection({
       {withImages.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {withImages.map((item) => (
-            <ImageCard key={item.id} item={item} currency={currency} primary={primary} onAdd={() => onAdd(item)} />
+            <ImageCard key={item.id} item={item} currency={currency} primary={primary} ordering={ordering} onAdd={() => onAdd(item)} />
           ))}
         </div>
       )}
@@ -750,7 +795,7 @@ function MenuSection({
       {compactItems.length > 0 && (
         <div className={`grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 ${withImages.length > 0 ? 'mt-4' : ''}`}>
           {compactItems.map((item) => (
-            <CompactCard key={item.id} item={item} currency={currency} primary={primary} onAdd={() => onAdd(item)} />
+            <CompactCard key={item.id} item={item} currency={currency} primary={primary} ordering={ordering} onAdd={() => onAdd(item)} />
           ))}
         </div>
       )}
@@ -781,6 +826,67 @@ function PriceTag({ item, currency, primary }: { item: MenuItemRow; currency: st
   );
 }
 
+function LangSelect({
+  lang,
+  setLang,
+  langs,
+  primary,
+}: {
+  lang: string;
+  setLang: (l: string) => void;
+  langs: readonly string[];
+  primary: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = MENU_LANG_META[(lang || 'bs') as keyof typeof MENU_LANG_META] ?? MENU_LANG_META.bs;
+  return (
+    <div className="relative shrink-0">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.05] px-3 py-2.5 text-sm outline-none transition-colors hover:bg-white/[0.09]"
+        aria-label="Jezik menija"
+      >
+        <span className="text-base leading-none">{current.flag}</span>
+        <span className="hidden text-xs font-semibold uppercase sm:inline">{lang || 'bs'}</span>
+      </button>
+      <AnimatePresence>
+        {open && (
+          <>
+            <button className="fixed inset-0 z-40 cursor-default" onClick={() => setOpen(false)} aria-hidden />
+            <motion.div
+              initial={{ opacity: 0, y: -6, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.97 }}
+              transition={{ duration: 0.15 }}
+              className="absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-2xl border border-white/12 bg-[#141210] p-1 shadow-lifted"
+            >
+              {langs.map((l) => {
+                const meta = MENU_LANG_META[l as keyof typeof MENU_LANG_META];
+                const active = (lang || 'bs') === l;
+                return (
+                  <button
+                    key={l}
+                    onClick={() => {
+                      setLang(l);
+                      setOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm transition-colors hover:bg-white/8"
+                    style={active ? { color: primary } : undefined}
+                  >
+                    <span className="text-base leading-none">{meta.flag}</span>
+                    <span className="flex-1">{meta.label}</span>
+                    {active && <span className="text-xs">✓</span>}
+                  </button>
+                );
+              })}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function AddButton({ primary, onAdd, small }: { primary: string; onAdd: () => void; small?: boolean }) {
   const [added, setAdded] = useState(false);
   return (
@@ -806,11 +912,13 @@ function ImageCard({
   item,
   currency,
   primary,
+  ordering = true,
   onAdd,
 }: {
   item: MenuItemRow;
   currency: string;
   primary: string;
+  ordering?: boolean;
   onAdd: () => void;
 }) {
   return (
@@ -855,9 +963,11 @@ function ImageCard({
             <PriceTag item={item} currency={currency} primary={primary} />
           </div>
         </div>
-        <div className="pt-0.5">
-          <AddButton primary={primary} onAdd={onAdd} />
-        </div>
+        {ordering && (
+          <div className="pt-0.5">
+            <AddButton primary={primary} onAdd={onAdd} />
+          </div>
+        )}
       </div>
     </motion.article>
   );
@@ -867,11 +977,13 @@ function CompactCard({
   item,
   currency,
   primary,
+  ordering = true,
   onAdd,
 }: {
   item: MenuItemRow;
   currency: string;
   primary: string;
+  ordering?: boolean;
   onAdd: () => void;
 }) {
   return (
@@ -913,7 +1025,7 @@ function CompactCard({
           <PriceTag item={item} currency={currency} primary={primary} />
         </div>
       </div>
-      <AddButton primary={primary} onAdd={onAdd} small />
+      {ordering && <AddButton primary={primary} onAdd={onAdd} small />}
     </motion.article>
   );
 }

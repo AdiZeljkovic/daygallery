@@ -19,6 +19,10 @@ export interface MenuItemRow {
   sortOrder?: number;
   stockQty?: number | null;
   lowStockAt?: number | null;
+  // pića na čašu: zaliha u litrama + veličina čaše (ml)
+  servesByVolume?: boolean;
+  stockLiters?: string | null; // Decimal serijaliziran kao string
+  servingMl?: number | null;
   translations: ItemTranslation[];
 }
 
@@ -65,6 +69,7 @@ export interface PublicMenu {
   wheelPercentage?: number | null;
   promoImagePath?: string | null;
   promoCaption?: string | null;
+  orderingEnabled?: boolean;
   categories: MenuCategoryRow[];
 }
 

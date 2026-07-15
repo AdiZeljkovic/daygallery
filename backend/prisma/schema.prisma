@@ -84,6 +84,8 @@ model Venue {
   // Promo baner na vrhu menija
   promoImagePath    String?  @map("promo_image_path") @db.VarChar(255)
   promoCaption      String?  @map("promo_caption") @db.VarChar(200)
+  // Naručivanje uključeno/isključeno — kad je false, meni se vidi ali bez korpe
+  orderingEnabled   Boolean  @default(true) @map("ordering_enabled")
   isActive          Boolean  @default(true) @map("is_active")
   createdAt         DateTime @default(now()) @map("created_at")
 
@@ -160,6 +162,10 @@ model MenuItem {
   // inventar: null = stanje se ne prati; potvrđena narudžba odbija količinu
   stockQty        Int?    @map("stock_qty")
   lowStockAt      Int?    @map("low_stock_at")
+  // pića na čašu: zaliha se vodi u litrama, narudžba odbija veličinu čaše (servingMl)
+  servesByVolume  Boolean @default(false) @map("serves_by_volume")
+  stockLiters     Decimal? @map("stock_liters") @db.Decimal(8, 3)
+  servingMl       Int?    @map("serving_ml")
 
   category     MenuCategory          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   translations MenuItemTranslation[]

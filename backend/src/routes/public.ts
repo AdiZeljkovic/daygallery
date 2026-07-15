@@ -68,6 +68,7 @@ publicRouter.get('/venues/:slug/menu', async (req, res, next) => {
         wheelPercentage: true,
         promoImagePath: true,
         promoCaption: true,
+        orderingEnabled: true,
         isActive: true,
         menus: {
           where: { isActive: true },

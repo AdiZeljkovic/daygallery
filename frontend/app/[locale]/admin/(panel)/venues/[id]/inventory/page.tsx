@@ -32,6 +32,25 @@ interface MenuItemStock {
   stockQty: number | null;
   lowStockAt: number | null;
   isAvailable: boolean;
+  servesByVolume: boolean;
+  stockLiters: number | null;
+  servingMl: number | null;
+}
+
+type StockState = 'untracked' | 'out' | 'low' | 'ok';
+
+/** Jedinstveno stanje artikla — komadno (stockQty) ili litraža (stockLiters). */
+function stockState(i: MenuItemStock): StockState {
+  if (i.servesByVolume) {
+    if (i.stockLiters === null || !i.servingMl) return 'untracked';
+    if (i.stockLiters <= 0) return 'out';
+    if (i.lowStockAt !== null && i.stockLiters <= i.lowStockAt) return 'low';
+    return 'ok';
+  }
+  if (i.stockQty === null) return 'untracked';
+  if (i.stockQty === 0) return 'out';
+  if (i.lowStockAt !== null && i.stockQty <= i.lowStockAt) return 'low';
+  return 'ok';
 }
 
 export default function InventoryPage({ params }: { params: Promise<{ id: string }> }) {
@@ -60,9 +79,12 @@ export default function InventoryPage({ params }: { params: Promise<{ id: string
         id: i.id,
         name: i.name,
         imagePath: i.imagePath,
-        stockQty: (i as unknown as MenuItemStock).stockQty ?? null,
-        lowStockAt: (i as unknown as MenuItemStock).lowStockAt ?? null,
+        stockQty: i.stockQty ?? null,
+        lowStockAt: i.lowStockAt ?? null,
         isAvailable: i.isAvailable ?? true,
+        servesByVolume: i.servesByVolume ?? false,
+        stockLiters: i.stockLiters != null ? Number(i.stockLiters) : null,
+        servingMl: i.servingMl ?? null,
         isDrink: c.kind === 'drink',
       }))
     ) ?? [];
@@ -72,9 +94,7 @@ export default function InventoryPage({ params }: { params: Promise<{ id: string
   const foodItems = items.filter((i) => !i.isDrink);
   const foodTracked = foodItems.filter((i) => i.stockQty !== null);
   const foodUntracked = foodItems.filter((i) => i.stockQty === null);
-  const alerts = items.filter(
-    (i) => i.stockQty !== null && (i.stockQty === 0 || (i.lowStockAt !== null && i.stockQty <= i.lowStockAt))
-  );
+  const alerts = items.filter((i) => stockState(i) !== 'ok' && stockState(i) !== 'untracked');
 
   const patchItem = useMutation({
     mutationFn: ({ itemId, data }: { itemId: number; data: Record<string, unknown> }) =>
@@ -111,28 +131,34 @@ export default function InventoryPage({ params }: { params: Promise<{ id: string
             animate={{ opacity: 1, y: 0 }}
             className="mb-6 space-y-2"
           >
-            {alerts.map((item) => (
-              <div
-                key={item.id}
-                className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium ${
-                  item.stockQty === 0
-                    ? 'border-red-200 bg-red-50 text-red-600'
-                    : 'border-amber-50 bg-amber-50 text-amber-700'
-                }`}
-              >
-                {item.stockQty === 0 ? (
-                  <PackageX className="h-4 w-4 shrink-0" />
-                ) : (
-                  <AlertTriangle className="h-4 w-4 shrink-0" />
-                )}
-                <span className="flex-1">
-                  <strong>{item.name}</strong>
-                  {item.stockQty === 0
-                    ? ' — nema na stanju (automatski sklonjen sa menija)'
-                    : ` — nisko stanje: ostalo ${item.stockQty}`}
-                </span>
-              </div>
-            ))}
+            {alerts.map((item) => {
+              const out = stockState(item) === 'out';
+              const left = item.servesByVolume
+                ? `${(item.stockLiters ?? 0).toFixed(2)} l`
+                : `${item.stockQty}`;
+              return (
+                <div
+                  key={item.id}
+                  className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium ${
+                    out
+                      ? 'border-red-200 bg-red-50 text-red-600'
+                      : 'border-amber-200 bg-amber-50 text-amber-700'
+                  }`}
+                >
+                  {out ? (
+                    <PackageX className="h-4 w-4 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                  )}
+                  <span className="flex-1">
+                    <strong>{item.name}</strong>
+                    {out
+                      ? ' — nema na stanju (automatski sklonjen sa menija)'
+                      : ` — nisko stanje: ostalo ${left}`}
+                  </span>
+                </div>
+              );
+            })}
           </motion.div>
         )}
       </AnimatePresence>
@@ -143,8 +169,9 @@ export default function InventoryPage({ params }: { params: Promise<{ id: string
           <div className="mb-4">
             <h2 className="font-display text-xl font-bold">Pića — stanje</h2>
             <p className="mt-0.5 text-sm text-ink/50">
-              Sva pića iz menija. Upiši koliko je na stanju — potvrđena narudžba automatski odbija
-              količinu. Na nuli se piće sklanja sa menija dok ne dopuniš.
+              Sva pića iz menija. Upiši stanje — potvrđena narudžba automatski odbija količinu. Za
+              pića na čašu (sokovi, rakije) uključi „Na čašu" pa se odbija litraža (npr. 0,05 l).
+              Na nuli se piće sklanja sa menija dok ne dopuniš.
             </p>
           </div>
           <div className="space-y-2">
@@ -154,6 +181,7 @@ export default function InventoryPage({ params }: { params: Promise<{ id: string
                 item={item}
                 readOnly={isWorker}
                 alwaysTrack
+                allowVolume
                 onPatch={(data) => patchItem.mutate({ itemId: item.id, data })}
               />
             ))}
@@ -278,125 +306,247 @@ function ItemThumb({ item }: { item: { name: string; imagePath: string | null } 
   );
 }
 
+const STATE_CHIP: Record<StockState, { label: string; cls: string }> = {
+  untracked: { label: 'Bez praćenja', cls: 'bg-ink/8 text-ink/45' },
+  out: { label: 'Nema na stanju', cls: 'bg-red-100 text-red-600' },
+  low: { label: 'Nisko stanje', cls: 'bg-amber-100 text-amber-700' },
+  ok: { label: 'Na stanju', cls: 'bg-emerald-100 text-emerald-700' },
+};
+
 function StockRow({
   item,
   readOnly,
   onPatch,
   alwaysTrack = false,
+  allowVolume = false,
 }: {
   item: MenuItemStock;
   readOnly: boolean;
   onPatch: (data: Record<string, unknown>) => void;
   alwaysTrack?: boolean;
+  allowVolume?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
+  const [mode, setMode] = useState<'qty' | 'vol'>(item.servesByVolume ? 'vol' : 'qty');
   const [qty, setQty] = useState(String(item.stockQty ?? 0));
+  const [liters, setLiters] = useState(item.stockLiters != null ? String(item.stockLiters) : '');
+  const [serving, setServing] = useState(item.servingMl != null ? String(item.servingMl) : '');
   const [threshold, setThreshold] = useState(item.lowStockAt?.toString() ?? '');
 
-  const zero = item.stockQty === 0;
-  const low = !zero && item.lowStockAt !== null && (item.stockQty ?? 0) <= item.lowStockAt;
+  const state = stockState(item);
+  const byVol = item.servesByVolume;
+  const chip = STATE_CHIP[state];
+  const border = state === 'out' ? 'border-red-200' : state === 'low' ? 'border-amber-200' : 'border-ink/8';
+
+  const glassL = (item.servingMl ?? 0) / 1000;
+  const glasses = byVol && glassL > 0 ? Math.floor((item.stockLiters ?? 0) / glassL) : null;
+
+  const openEdit = () => {
+    setMode(item.servesByVolume ? 'vol' : 'qty');
+    setQty(String(item.stockQty ?? 0));
+    setLiters(item.stockLiters != null ? String(item.stockLiters) : '');
+    setServing(item.servingMl != null ? String(item.servingMl) : '');
+    setThreshold(item.lowStockAt?.toString() ?? '');
+    setEditing(true);
+  };
+
+  const save = () => {
+    if (mode === 'vol') {
+      const L = parseFloat(liters) || 0;
+      onPatch({
+        servesByVolume: true,
+        stockLiters: L,
+        servingMl: serving ? parseInt(serving) : null,
+        stockQty: null,
+        lowStockAt: threshold ? parseInt(threshold) : null,
+        ...(L > 0 && !item.isAvailable ? { isAvailable: true } : {}),
+      });
+    } else {
+      const Q = parseInt(qty) || 0;
+      onPatch({
+        servesByVolume: false,
+        stockLiters: null,
+        servingMl: null,
+        stockQty: Q,
+        lowStockAt: threshold ? parseInt(threshold) : null,
+        ...(Q > 0 && !item.isAvailable ? { isAvailable: true } : {}),
+      });
+    }
+    setEditing(false);
+  };
+
+  const inp =
+    'rounded-lg border border-ink/12 px-2 py-1.5 text-center text-sm outline-none transition-colors focus:border-gold';
 
   return (
     <motion.div
       layout
-      className={`flex flex-wrap items-center gap-3 rounded-xl border bg-white p-3 ${
-        zero ? 'border-red-200' : low ? 'border-amber-50' : 'border-ink/8'
-      }`}
+      className={`rounded-2xl border bg-white p-3 shadow-soft transition-colors ${border}`}
     >
-      <ItemThumb item={item} />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{item.name}</p>
-        {item.stockQty === null ? (
-          <p className="text-xs font-medium text-gold-dark">Upiši stanje →</p>
-        ) : zero ? (
-          <p className="text-xs font-semibold text-red-500">Nema na stanju</p>
-        ) : low ? (
-          <p className="text-xs font-semibold text-amber-600">Nisko stanje</p>
+      <div className="flex items-center gap-3">
+        <ItemThumb item={item} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold">{item.name}</p>
+          <div className="mt-1 flex items-center gap-1.5">
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${chip.cls}`}>
+              {chip.label}
+            </span>
+            {state !== 'untracked' && (
+              <span className="text-[11px] text-ink/40">
+                {byVol
+                  ? `čaša ${item.servingMl ?? '?'} ml${glasses !== null ? ` · ≈${glasses} čaša` : ''}`
+                  : item.lowStockAt !== null
+                    ? `prag ${item.lowStockAt}`
+                    : ''}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {readOnly ? (
+          <span className="font-display text-xl font-bold text-ink/80">
+            {byVol ? `${(item.stockLiters ?? 0).toFixed(2)} l` : (item.stockQty ?? '—')}
+          </span>
+        ) : state === 'untracked' ? (
+          <button
+            onClick={openEdit}
+            className="rounded-full bg-gold/12 px-3.5 py-1.5 text-xs font-semibold text-gold-dark transition-colors hover:bg-gold/25"
+          >
+            Upiši stanje →
+          </button>
+        ) : byVol ? (
+          // Litraža — vrijednost (klik = uredi/dopuni), bez ± (dopuna kroz uređivanje)
+          <div className="flex items-center gap-1">
+            <button
+              onClick={openEdit}
+              className={`rounded-lg px-3 py-1 text-center font-display text-xl font-bold transition-colors hover:bg-ink/5 ${
+                state === 'out' ? 'text-red-500' : state === 'low' ? 'text-amber-600' : ''
+              }`}
+              title="Klikni za dopunu / izmjenu"
+            >
+              {(item.stockLiters ?? 0).toFixed(2)} <span className="text-sm font-semibold text-ink/40">l</span>
+            </button>
+            <UntrackBtn show={!alwaysTrack} onClick={() => onPatch(untrackData)} />
+          </div>
         ) : (
-          <p className="text-xs text-ink/40">
-            Prag upozorenja: {item.lowStockAt ?? '—'}
-          </p>
+          // Komadno — segmentirani − | broj | + u jednom pill kontejneru
+          <div className="flex items-center gap-1">
+            <div className="flex items-center rounded-full border border-ink/10 bg-ink/[0.03]">
+              <button
+                onClick={() => onPatch({ stockQty: Math.max(0, (item.stockQty ?? 0) - 1) })}
+                className="flex h-9 w-9 items-center justify-center rounded-l-full text-ink/55 transition-colors hover:bg-ink/8"
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={openEdit}
+                className={`min-w-[3rem] px-1 text-center font-display text-lg font-bold transition-colors hover:text-gold-dark ${
+                  state === 'out' ? 'text-red-500' : state === 'low' ? 'text-amber-600' : ''
+                }`}
+                title="Klikni za tačan unos i prag"
+              >
+                {item.stockQty ?? '—'}
+              </button>
+              <button
+                onClick={() =>
+                  onPatch({
+                    stockQty: (item.stockQty ?? 0) + 1,
+                    ...((item.stockQty ?? 0) === 0 && !item.isAvailable ? { isAvailable: true } : {}),
+                  })
+                }
+                className="flex h-9 w-9 items-center justify-center rounded-r-full text-gold-dark transition-colors hover:bg-gold/15"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <UntrackBtn show={!alwaysTrack} onClick={() => onPatch(untrackData)} />
+          </div>
         )}
       </div>
 
-      {readOnly ? (
-        <span className="font-display text-xl font-bold">{item.stockQty ?? '—'}</span>
-      ) : editing ? (
-        <div className="flex items-center gap-2">
-          <input
-            autoFocus
-            inputMode="numeric"
-            value={qty}
-            onChange={(e) => setQty(e.target.value.replace(/\D/g, ''))}
-            className="w-20 rounded-lg border border-gold px-2 py-1.5 text-center text-sm font-bold outline-none"
-            placeholder="Stanje"
-          />
-          <input
-            inputMode="numeric"
-            value={threshold}
-            onChange={(e) => setThreshold(e.target.value.replace(/\D/g, ''))}
-            className="w-20 rounded-lg border border-ink/12 px-2 py-1.5 text-center text-sm outline-none focus:border-gold"
-            placeholder="Prag"
-            title="Prag za upozorenje o niskom stanju"
-          />
-          <button
-            onClick={() => {
-              onPatch({
-                stockQty: parseInt(qty) || 0,
-                lowStockAt: threshold ? parseInt(threshold) : null,
-                ...(parseInt(qty) > 0 && !item.isAvailable ? { isAvailable: true } : {}),
-              });
-              setEditing(false);
-            }}
-            className="rounded-lg bg-emerald-500 p-2 text-[#fff]"
+      {/* Edit panel */}
+      <AnimatePresence>
+        {editing && !readOnly && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
           >
-            <Check className="h-4 w-4" />
-          </button>
-        </div>
-      ) : (
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => onPatch({ stockQty: Math.max(0, (item.stockQty ?? 0) - 1) })}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-ink/5 text-ink/60 transition-colors hover:bg-ink/10"
-          >
-            <Minus className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={() => {
-              setQty(String(item.stockQty ?? 0));
-              setThreshold(item.lowStockAt?.toString() ?? '');
-              setEditing(true);
-            }}
-            className={`w-16 rounded-lg py-1 text-center font-display text-xl font-bold transition-colors hover:bg-ink/5 ${
-              zero ? 'text-red-500' : low ? 'text-amber-600' : ''
-            }`}
-            title="Klikni za unos tačnog broja i praga"
-          >
-            {item.stockQty ?? '—'}
-          </button>
-          <button
-            onClick={() =>
-              onPatch({
-                stockQty: (item.stockQty ?? 0) + 1,
-                ...((item.stockQty ?? 0) === 0 && !item.isAvailable ? { isAvailable: true } : {}),
-              })
-            }
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-gold/15 text-gold-dark transition-colors hover:bg-gold/30"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
-          {!alwaysTrack && (
-            <button
-              onClick={() => onPatch({ stockQty: null, lowStockAt: null })}
-              className="ml-1 rounded-lg p-1.5 text-ink/30 transition-colors hover:bg-ink/5 hover:text-ink/60"
-              title="Prestani pratiti stanje"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-      )}
+            <div className="mt-3 space-y-3 border-t border-ink/8 pt-3">
+              {allowVolume && (
+                <div className="flex rounded-lg bg-ink/5 p-0.5 text-xs font-semibold">
+                  <button
+                    onClick={() => setMode('qty')}
+                    className={`flex-1 rounded-md py-1.5 transition-colors ${mode === 'qty' ? 'bg-white text-ink shadow-soft' : 'text-ink/50'}`}
+                  >
+                    Komadno
+                  </button>
+                  <button
+                    onClick={() => setMode('vol')}
+                    className={`flex-1 rounded-md py-1.5 transition-colors ${mode === 'vol' ? 'bg-white text-ink shadow-soft' : 'text-ink/50'}`}
+                  >
+                    Na čašu (litraža)
+                  </button>
+                </div>
+              )}
+
+              {mode === 'vol' ? (
+                <div className="grid grid-cols-3 gap-2">
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-medium uppercase text-ink/45">Litre ukupno</span>
+                    <input autoFocus inputMode="decimal" value={liters} onChange={(e) => setLiters(e.target.value.replace(',', '.').replace(/[^\d.]/g, ''))} className={`${inp} w-full`} placeholder="3.0" />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-medium uppercase text-ink/45">Čaša (ml)</span>
+                    <input inputMode="numeric" value={serving} onChange={(e) => setServing(e.target.value.replace(/\D/g, ''))} className={`${inp} w-full`} placeholder="50" />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-medium uppercase text-ink/45">Prag (l)</span>
+                    <input inputMode="numeric" value={threshold} onChange={(e) => setThreshold(e.target.value.replace(/\D/g, ''))} className={`${inp} w-full`} placeholder="1" />
+                  </label>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-medium uppercase text-ink/45">Stanje (kom)</span>
+                    <input autoFocus inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value.replace(/\D/g, ''))} className={`${inp} w-full`} placeholder="0" />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-medium uppercase text-ink/45">Prag upozorenja</span>
+                    <input inputMode="numeric" value={threshold} onChange={(e) => setThreshold(e.target.value.replace(/\D/g, ''))} className={`${inp} w-full`} placeholder="—" />
+                  </label>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setEditing(false)} className="rounded-full px-4 py-1.5 text-xs font-semibold text-ink/50 hover:bg-ink/5">
+                  Odustani
+                </button>
+                <button onClick={save} className="btn-glossy flex items-center gap-1.5 rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-neutral-900">
+                  <Check className="h-3.5 w-3.5" /> Sačuvaj
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
+  );
+}
+
+const untrackData = { stockQty: null, lowStockAt: null, servesByVolume: false, stockLiters: null, servingMl: null };
+
+function UntrackBtn({ show, onClick }: { show: boolean; onClick: () => void }) {
+  if (!show) return null;
+  return (
+    <button
+      onClick={onClick}
+      className="rounded-lg p-1.5 text-ink/25 transition-colors hover:bg-ink/5 hover:text-ink/55"
+      title="Prestani pratiti stanje"
+    >
+      <X className="h-3.5 w-3.5" />
+    </button>
   );
 }
 
@@ -416,16 +566,22 @@ function SupplyRow({
 
   return (
     <div
-      className={`flex items-center gap-3 rounded-xl border bg-white p-3 ${
-        low ? 'border-amber-50' : 'border-ink/8'
+      className={`flex items-center gap-3 rounded-2xl border bg-white p-3 shadow-soft ${
+        low ? 'border-amber-200' : 'border-ink/8'
       }`}
     >
       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold/10">
         <Boxes className="h-4 w-4 text-gold-dark" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{supply.name}</p>
-        {low && <p className="text-xs font-semibold text-amber-600">Nisko stanje</p>}
+        <p className="truncate text-sm font-semibold">{supply.name}</p>
+        {low ? (
+          <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+            Nisko stanje
+          </span>
+        ) : (
+          <p className="text-[11px] text-ink/40">Ručno vođeno</p>
+        )}
       </div>
 
       {readOnly ? (
@@ -433,25 +589,27 @@ function SupplyRow({
           {qty} <span className="text-xs font-normal text-ink/40">{supply.unit}</span>
         </span>
       ) : (
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => onPatch({ quantity: Math.max(0, qty - 1) })}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-ink/5 text-ink/60 hover:bg-ink/10"
-          >
-            <Minus className="h-3.5 w-3.5" />
-          </button>
-          <span className={`w-20 text-center font-display text-lg font-bold ${low ? 'text-amber-600' : ''}`}>
-            {qty} <span className="text-xs font-normal text-ink/40">{supply.unit}</span>
-          </span>
-          <button
-            onClick={() => onPatch({ quantity: qty + 1 })}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-gold/15 text-gold-dark hover:bg-gold/30"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
+        <div className="flex items-center gap-1">
+          <div className="flex items-center rounded-full border border-ink/10 bg-ink/[0.03]">
+            <button
+              onClick={() => onPatch({ quantity: Math.max(0, qty - 1) })}
+              className="flex h-9 w-9 items-center justify-center rounded-l-full text-ink/55 transition-colors hover:bg-ink/8"
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </button>
+            <span className={`min-w-[3.5rem] px-1 text-center font-display text-lg font-bold ${low ? 'text-amber-600' : ''}`}>
+              {qty} <span className="text-xs font-normal text-ink/40">{supply.unit}</span>
+            </span>
+            <button
+              onClick={() => onPatch({ quantity: qty + 1 })}
+              className="flex h-9 w-9 items-center justify-center rounded-r-full text-gold-dark transition-colors hover:bg-gold/15"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          </div>
           <button
             onClick={onDelete}
-            className="ml-1 rounded-lg p-1.5 text-ink/30 hover:bg-red-50 hover:text-red-500"
+            className="rounded-lg p-1.5 text-ink/25 transition-colors hover:bg-red-50 hover:text-red-500"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>

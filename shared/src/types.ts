@@ -17,6 +17,21 @@ export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export const CATEGORY_KINDS = ['food', 'drink', 'promo'] as const;
 export type CategoryKind = (typeof CATEGORY_KINDS)[number];
 
+/** Jezici prevoda menija (bs = izvor/osnova). */
+export const MENU_LANGS = ['bs', 'en', 'de', 'it', 'es', 'fr', 'tr', 'ar'] as const;
+export type MenuLang = (typeof MENU_LANGS)[number];
+
+export const MENU_LANG_META: Record<MenuLang, { label: string; flag: string }> = {
+  bs: { label: 'Bosanski', flag: '🇧🇦' },
+  en: { label: 'English', flag: '🇬🇧' },
+  de: { label: 'Deutsch', flag: '🇩🇪' },
+  it: { label: 'Italiano', flag: '🇮🇹' },
+  es: { label: 'Español', flag: '🇪🇸' },
+  fr: { label: 'Français', flag: '🇫🇷' },
+  tr: { label: 'Türkçe', flag: '🇹🇷' },
+  ar: { label: 'العربية', flag: '🇸🇦' },
+};
+
 export interface AuthUser {
   id: number;
   email: string;

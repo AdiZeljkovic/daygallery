@@ -16,7 +16,10 @@ import {
   X,
   Loader2,
   EyeOff,
+  Languages,
+  ChevronRight,
 } from 'lucide-react';
+import { MENU_LANGS, MENU_LANG_META } from '@platform/shared';
 import { api, ApiError } from '@/lib/api';
 import {
   type AdminMenuTree,
@@ -26,6 +29,27 @@ import {
   finalPrice,
   fmtPrice,
 } from '@/lib/menuTypes';
+
+type TransMap = Record<string, { name: string; description: string }>;
+
+const TARGET_LANGS = MENU_LANGS.filter((l) => l !== 'bs');
+
+function buildTransMap(translations?: { lang: string; name: string; description?: string | null }[]): TransMap {
+  const map: TransMap = {};
+  for (const l of TARGET_LANGS) map[l] = { name: '', description: '' };
+  translations?.forEach((t) => {
+    if (map[t.lang]) map[t.lang] = { name: t.name ?? '', description: t.description ?? '' };
+  });
+  return map;
+}
+
+function transToArray(map: TransMap, withDescription: boolean) {
+  return TARGET_LANGS.map((l) => ({
+    lang: l,
+    name: map[l]?.name.trim() ?? '',
+    ...(withDescription ? { description: map[l]?.description.trim() ?? '' } : {}),
+  })).filter((t) => t.name); // schema traži name; prazne preskačemo
+}
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -314,6 +338,7 @@ function CategoryModal({
 }) {
   const [name, setName] = useState(category?.name ?? '');
   const [kind, setKind] = useState<'food' | 'drink' | 'promo'>(category?.kind ?? 'food');
+  const [trans, setTrans] = useState<TransMap>(() => buildTransMap(category?.translations));
   const [error, setError] = useState<string | null>(null);
 
   const save = useMutation({
@@ -321,7 +346,7 @@ function CategoryModal({
       category
         ? api(`/api/categories/${category.id}`, {
             method: 'PATCH',
-            body: JSON.stringify({ name, kind }),
+            body: JSON.stringify({ name, kind, translations: transToArray(trans, false) }),
           })
         : api(`/api/menus/${menuId}/categories`, {
             method: 'POST',
@@ -367,6 +392,12 @@ function CategoryModal({
         </div>
       </div>
 
+      {category ? (
+        <TranslationsEditor map={trans} setMap={setTrans} withDescription={false} baseName={name} />
+      ) : (
+        <p className="mt-3 text-xs text-ink/40">Prevode možeš dodati nakon što sačuvaš kategoriju.</p>
+      )}
+
       {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
 
       <button
@@ -403,6 +434,7 @@ function ItemModal({
   const [price, setPrice] = useState(item?.price ?? '');
   const [discount, setDiscount] = useState<string>(item?.discountPercent?.toString() ?? '');
   const [isFeatured, setIsFeatured] = useState(item?.isFeatured ?? false);
+  const [trans, setTrans] = useState<TransMap>(() => buildTransMap(item?.translations));
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -416,6 +448,8 @@ function ItemModal({
         price: parseFloat(price) || 0,
         discountPercent: discount ? parseInt(discount) : null,
         isFeatured,
+        // prevodi se čuvaju samo pri izmjeni (novi artikal nema id za upsert)
+        ...(item ? { translations: transToArray(trans, true) } : {}),
       });
       return item
         ? api<MenuItemRow>(`/api/items/${item.id}`, { method: 'PATCH', body })
@@ -532,6 +566,12 @@ function ItemModal({
         </span>
       </label>
 
+      {item ? (
+        <TranslationsEditor map={trans} setMap={setTrans} withDescription baseName={name} />
+      ) : (
+        <p className="mt-3 text-xs text-ink/40">Prevode možeš dodati nakon što sačuvaš artikal.</p>
+      )}
+
       {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
 
       <button
@@ -543,6 +583,77 @@ function ItemModal({
         Sačuvaj
       </button>
     </ModalShell>
+  );
+}
+
+// ================================================================
+// Editor prevoda (po jeziku) — koristi se u modalima artikla/kategorije
+// ================================================================
+
+function TranslationsEditor({
+  map,
+  setMap,
+  withDescription,
+  baseName,
+}: {
+  map: TransMap;
+  setMap: (m: TransMap) => void;
+  withDescription: boolean;
+  baseName: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const filled = TARGET_LANGS.filter((l) => map[l]?.name.trim()).length;
+  const cls =
+    'w-full rounded-lg border border-ink/12 px-2.5 py-1.5 text-sm outline-none transition-colors focus:border-gold';
+
+  return (
+    <div className="mt-3 overflow-hidden rounded-lg border border-ink/10">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center gap-2 px-3 py-2.5 text-sm transition-colors hover:bg-ink/[0.02]"
+      >
+        <Languages className="h-4 w-4 text-gold-dark" />
+        <span className="font-medium">Prevodi</span>
+        <span className="rounded-full bg-ink/5 px-1.5 text-[10px] font-semibold text-ink/45">
+          {filled}/{TARGET_LANGS.length}
+        </span>
+        <ChevronRight className={`ml-auto h-4 w-4 text-ink/30 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      {open && (
+        <div className="space-y-3 border-t border-ink/8 p-3">
+          <p className="text-xs text-ink/45">
+            Osnovni tekst (🇧🇦 bosanski): „{baseName || '—'}". Popuni jezike koje gosti biraju na
+            meniju — prazno se preskače.
+          </p>
+          {TARGET_LANGS.map((l) => {
+            const meta = MENU_LANG_META[l];
+            return (
+              <div key={l} className="space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-ink/55">
+                  <span className="text-sm">{meta.flag}</span> {meta.label}
+                </div>
+                <input
+                  value={map[l]?.name ?? ''}
+                  onChange={(e) => setMap({ ...map, [l]: { ...map[l], name: e.target.value } })}
+                  placeholder={`Naziv (${meta.label})`}
+                  className={cls}
+                />
+                {withDescription && (
+                  <textarea
+                    rows={1}
+                    value={map[l]?.description ?? ''}
+                    onChange={(e) => setMap({ ...map, [l]: { ...map[l], description: e.target.value } })}
+                    placeholder="Opis (opcionalno)"
+                    className={`${cls} resize-none`}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 

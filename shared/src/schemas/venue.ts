@@ -22,6 +22,7 @@ export const createVenueSchema = z.object({
   wheelEnabled: z.boolean().default(false),
   wheelPercentage: z.coerce.number().int().min(1).max(90).nullable().optional(),
   promoCaption: z.string().trim().max(200).optional().or(z.literal('')),
+  orderingEnabled: z.boolean().default(true),
 });
 export type CreateVenueInput = z.infer<typeof createVenueSchema>;
 
