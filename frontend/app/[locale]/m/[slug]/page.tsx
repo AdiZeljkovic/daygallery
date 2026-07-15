@@ -19,6 +19,7 @@ import {
   Phone,
   Sparkles,
   Gift,
+  ChevronRight,
 } from 'lucide-react';
 import { MENU_LANGS, MENU_LANG_META } from '@platform/shared';
 import { useRouter } from '@/i18n/navigation';
@@ -888,45 +889,78 @@ function LangGate({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0c0b09]/95 px-5 backdrop-blur-md"
+          className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-[#0c0b09]/95 px-5 py-10 backdrop-blur-md sm:items-center"
         >
           <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.96 }}
+            initial={{ opacity: 0, y: 24, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 300, damping: 26 }}
-            className="w-full max-w-sm text-center"
+            className="w-full max-w-[22rem]"
           >
-            {logoPath ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageUrl(logoPath)!} alt={venueName} className="mx-auto mb-4 h-16 w-16 rounded-2xl object-cover ring-1 ring-white/10" />
-            ) : (
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl font-display text-2xl font-bold" style={{ background: `${primary}22`, color: primary }}>
-                {venueName[0]}
+            {/* Zaglavlje */}
+            <div className="mb-7 text-center">
+              {logoPath ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={imageUrl(logoPath)!}
+                  alt={venueName}
+                  className="mx-auto mb-4 h-20 w-20 rounded-3xl object-cover shadow-lifted ring-1 ring-white/10"
+                />
+              ) : (
+                <div
+                  className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-3xl font-display text-3xl font-bold ring-1 ring-white/10"
+                  style={{ background: `${primary}22`, color: primary }}
+                >
+                  {venueName[0]}
+                </div>
+              )}
+              <h2 className="font-display text-2xl font-bold">{venueName}</h2>
+              <div className="mt-2 flex items-center justify-center gap-2">
+                <span className="h-px w-6" style={{ background: `${primary}88` }} />
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: primary }}>
+                  Odaberite jezik
+                </p>
+                <span className="h-px w-6" style={{ background: `${primary}88` }} />
               </div>
-            )}
-            <h2 className="font-display text-xl font-bold">{venueName}</h2>
-            <p className="mt-1 text-sm opacity-50">Odaberite jezik · Choose language</p>
+              <p className="mt-1 text-xs opacity-40">Choose your language</p>
+            </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-2.5">
-              {langs.map((l) => {
+            {/* Jezici — jedan ispod drugog */}
+            <div className="space-y-2">
+              {langs.map((l, i) => {
                 const meta = MENU_LANG_META[l as keyof typeof MENU_LANG_META];
                 return (
-                  <button
+                  <motion.button
                     key={l}
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.05 + i * 0.05, duration: 0.35 }}
                     onClick={() => onPick(l)}
-                    className="flex items-center gap-2.5 rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-left text-sm font-semibold transition-colors hover:border-white/30 hover:bg-white/[0.08]"
+                    className="group flex w-full items-center gap-3.5 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3.5 text-left transition-all hover:bg-white/[0.07]"
+                    style={{ borderColor: 'rgba(255,255,255,0.1)' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = `${primary}88`)}
+                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                   >
-                    <span className="text-xl leading-none">{meta.flag}</span>
-                    <span>{meta.label}</span>
-                  </button>
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-2xl leading-none">
+                      {meta.flag}
+                    </span>
+                    <span className="flex-1">
+                      <span className="block text-[15px] font-semibold leading-tight">{meta.label}</span>
+                      <span className="block text-[10px] uppercase tracking-widest opacity-35">{l}</span>
+                    </span>
+                    <ChevronRight
+                      className="h-4 w-4 shrink-0 -translate-x-1 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100"
+                      style={{ color: primary }}
+                    />
+                  </motion.button>
                 );
               })}
             </div>
 
             <button
               onClick={onClose}
-              className="mt-5 text-xs uppercase tracking-widest opacity-40 transition-opacity hover:opacity-80"
+              className="mt-6 block w-full text-center text-xs uppercase tracking-[0.2em] opacity-40 transition-opacity hover:opacity-80"
             >
               Preskoči
             </button>
