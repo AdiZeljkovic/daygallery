@@ -865,6 +865,26 @@ function PriceTag({ item, currency, primary }: { item: MenuItemRow; currency: st
   );
 }
 
+// Jezik → ISO kod države za zastavicu (emoji zastave ne rade na Windowsu)
+const FLAG_CC: Record<string, string> = {
+  bs: 'ba',
+  en: 'gb',
+  de: 'de',
+  it: 'it',
+  es: 'es',
+  fr: 'fr',
+  tr: 'tr',
+  ar: 'sa',
+};
+
+function Flag({ lang, className }: { lang: string; className?: string }) {
+  const cc = FLAG_CC[lang] ?? 'un';
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={`https://flagcdn.com/${cc}.svg`} alt="" loading="lazy" className={className} />
+  );
+}
+
 function LangGate({
   open,
   langs,
@@ -942,8 +962,8 @@ function LangGate({
                     onMouseEnter={(e) => (e.currentTarget.style.borderColor = `${primary}88`)}
                     onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                   >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-2xl leading-none">
-                      {meta.flag}
+                    <span className="h-8 w-11 shrink-0 overflow-hidden rounded-md shadow-soft ring-1 ring-white/12">
+                      <Flag lang={l} className="h-full w-full object-cover" />
                     </span>
                     <span className="flex-1">
                       <span className="block text-[15px] font-semibold leading-tight">{meta.label}</span>
@@ -983,7 +1003,6 @@ function LangSelect({
   primary: string;
 }) {
   const [open, setOpen] = useState(false);
-  const current = MENU_LANG_META[(lang || 'bs') as keyof typeof MENU_LANG_META] ?? MENU_LANG_META.bs;
   return (
     <div className="relative shrink-0">
       <button
@@ -991,7 +1010,7 @@ function LangSelect({
         className="flex items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.05] px-3 py-2.5 text-sm outline-none transition-colors hover:bg-white/[0.09]"
         aria-label="Jezik menija"
       >
-        <span className="text-base leading-none">{current.flag}</span>
+        <Flag lang={lang || 'bs'} className="h-4 w-6 rounded-sm object-cover ring-1 ring-white/10" />
         <span className="hidden text-xs font-semibold uppercase sm:inline">{lang || 'bs'}</span>
       </button>
       <AnimatePresence>
@@ -1018,7 +1037,7 @@ function LangSelect({
                     className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm transition-colors hover:bg-white/8"
                     style={active ? { color: primary } : undefined}
                   >
-                    <span className="text-base leading-none">{meta.flag}</span>
+                    <Flag lang={l} className="h-4 w-6 rounded-sm object-cover ring-1 ring-white/10" />
                     <span className="flex-1">{meta.label}</span>
                     {active && <span className="text-xs">✓</span>}
                   </button>
