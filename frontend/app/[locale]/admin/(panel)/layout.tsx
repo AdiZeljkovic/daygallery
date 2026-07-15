@@ -296,7 +296,7 @@ export default function AdminPanelLayout({ children }: { children: React.ReactNo
     <div className={`${theme === 'dark' ? 'admin-dark' : ''} min-h-screen bg-cream`}>
       {/* ============ HEADER ============ */}
       <header className="sticky top-0 z-40 border-b border-ink/8 bg-white/85 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6">
+        <div className="flex h-16 items-center gap-4 px-4 sm:px-6 lg:px-8">
           {/* Logo + kontekst */}
           <Link
             href={nav[0]?.href ?? '/admin/dashboard'}
