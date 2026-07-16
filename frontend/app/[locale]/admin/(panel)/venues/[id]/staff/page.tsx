@@ -65,6 +65,19 @@ export default function StaffPage({ params }: { params: Promise<{ id: string }> 
     onSuccess: () => qc.invalidateQueries({ queryKey: ['staff', venueId] }),
   });
 
+  // Grupa naloga dodijeljena objektu (superadmin je dodjeljuje; šef dodaje naloge)
+  const [addToGroupOpen, setAddToGroupOpen] = useState(false);
+  const { data: venueGroup } = useQuery({
+    queryKey: ['venueGroup', venueId],
+    queryFn: () => api<{ id: number; name: string; members: StaffMember[] } | null>(`/api/venues/${venueId}/group`),
+  });
+
+  const removeGroupMember = useMutation({
+    mutationFn: (memberId: number) =>
+      api(`/api/venues/${venueId}/group/members/${memberId}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['venueGroup', venueId] }),
+  });
+
   const refresh = () => qc.invalidateQueries({ queryKey: ['staff', venueId] });
 
   // Grupisano po roli, redoslijedom ROLE_ORDER
@@ -114,6 +127,62 @@ export default function StaffPage({ params }: { params: Promise<{ id: string }> 
         </div>
         <span className="hidden text-[11px] text-ink/35 sm:block">Puna kontrola</span>
       </div>
+
+      {/* Grupa naloga dodijeljena objektu */}
+      {venueGroup && (
+        <div className="mb-6 rounded-2xl border border-ink/8 bg-white p-4 shadow-soft">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <UsersRound className="h-4 w-4 text-gold-dark" />
+              <h2 className="font-display text-base font-bold">Grupa: {venueGroup.name}</h2>
+              <span className="rounded-full bg-ink/5 px-1.5 text-[10px] font-semibold text-ink/40">
+                {venueGroup.members.length}
+              </span>
+            </div>
+            <button
+              onClick={() => setAddToGroupOpen(true)}
+              className="flex items-center gap-1.5 rounded-full bg-gold/12 px-3.5 py-2 text-xs font-semibold text-gold-dark transition-colors hover:bg-gold/25"
+            >
+              <Plus className="h-3.5 w-3.5" /> Dodaj u grupu
+            </button>
+          </div>
+          <div className="space-y-2">
+            {venueGroup.members.map((m) => {
+              const meta = ROLE_META[m.role];
+              return (
+                <div key={m.id} className="flex items-center gap-3 rounded-xl border border-ink/8 bg-ink/[0.015] p-3">
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${meta.tint}`}>
+                    <meta.icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-semibold">{m.name}</p>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${meta.tint}`}>
+                        {meta.label}
+                      </span>
+                    </div>
+                    <p className="truncate text-xs text-ink/45">{m.email}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Ukloniti "${m.name}" iz grupe? Nalog bez drugih veza se briše.`))
+                        removeGroupMember.mutate(m.id);
+                    }}
+                    className="rounded-lg p-2 text-ink/35 transition-colors hover:bg-red-50 hover:text-red-500"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+            {venueGroup.members.length === 0 && (
+              <p className="py-3 text-center text-sm text-ink/40">
+                Grupa još nema naloga — dodaj konobara i šank/kuhinju.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center py-20">
@@ -196,6 +265,18 @@ export default function StaffPage({ params }: { params: Promise<{ id: string }> 
           }}
         />
       )}
+      {addToGroupOpen && venueGroup && (
+        <AddStaffModal
+          venueId={venueId}
+          endpoint={`/api/venues/${venueId}/group/members`}
+          title={`Novi nalog — grupa ${venueGroup.name}`}
+          onClose={() => setAddToGroupOpen(false)}
+          onSaved={() => {
+            setAddToGroupOpen(false);
+            qc.invalidateQueries({ queryKey: ['venueGroup', venueId] });
+          }}
+        />
+      )}
       {teamOpen && (
         <StandardTeamModal
           venueId={venueId}
@@ -222,10 +303,14 @@ const inputCls =
 
 function AddStaffModal({
   venueId,
+  endpoint,
+  title = 'Novi radnik',
   onClose,
   onSaved,
 }: {
   venueId: string;
+  endpoint?: string;
+  title?: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -237,7 +322,7 @@ function AddStaffModal({
 
   const save = useMutation({
     mutationFn: () =>
-      api(`/api/venues/${venueId}/staff`, {
+      api(endpoint ?? `/api/venues/${venueId}/staff`, {
         method: 'POST',
         body: JSON.stringify({ name, email, password, role }),
       }),
@@ -246,7 +331,7 @@ function AddStaffModal({
   });
 
   return (
-    <ModalShell title="Novi radnik" onClose={onClose}>
+    <ModalShell title={title} onClose={onClose}>
       <div className="space-y-3">
         <input autoFocus placeholder="Ime i prezime" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
         <input type="email" placeholder="Email (za prijavu)" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />

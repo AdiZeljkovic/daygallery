@@ -45,6 +45,18 @@ const GROUP_META = {
 } as const;
 type GroupKey = keyof typeof GROUP_META;
 
+/** UI natpisi menija po jeziku (nazivi jela dolaze iz baze; ovo su fiksni natpisi). */
+const UI_STRINGS: Record<string, { food: string; drink: string; promo: string; featured: string; search: string }> = {
+  bs: { food: 'Hrana', drink: 'Pića', promo: 'Promo', featured: 'Specijalna ponuda', search: 'Pretraži meni...' },
+  en: { food: 'Food', drink: 'Drinks', promo: 'Promo', featured: 'Special offer', search: 'Search menu...' },
+  de: { food: 'Essen', drink: 'Getränke', promo: 'Promo', featured: 'Spezialangebot', search: 'Menü durchsuchen...' },
+  it: { food: 'Cibo', drink: 'Bevande', promo: 'Promo', featured: 'Offerta speciale', search: 'Cerca nel menu...' },
+  es: { food: 'Comida', drink: 'Bebidas', promo: 'Promo', featured: 'Oferta especial', search: 'Buscar en el menú...' },
+  fr: { food: 'Plats', drink: 'Boissons', promo: 'Promo', featured: 'Offre spéciale', search: 'Rechercher...' },
+  tr: { food: 'Yemek', drink: 'İçecekler', promo: 'Promo', featured: 'Özel teklif', search: 'Menüde ara...' },
+  ar: { food: 'طعام', drink: 'مشروبات', promo: 'عروض', featured: 'عرض خاص', search: '...ابحث في القائمة' },
+};
+
 /** Dijakritički-neosjetljiva pretraga */
 const normalize = (s: string) =>
   s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
@@ -247,6 +259,9 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
   const count = cart.venueSlug === slug ? cart.count() : 0;
   // Naručivanje isključeno → meni „samo za pregled" (bez korpe, dugmadi, kola sreće)
   const ordering = menu.orderingEnabled !== false;
+  // UI natpisi na izabranom jeziku
+  const ui = UI_STRINGS[lang] ?? UI_STRINGS.bs;
+  const groupLabel = (g: GroupKey) => ui[g];
 
   return (
     <main className="relative min-h-screen bg-[#0c0b09] text-[#f5f1e8]">
@@ -348,7 +363,7 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
                       />
                     )}
                     <Icon className="relative h-3.5 w-3.5" />
-                    <span className="relative">{GROUP_META[group].label}</span>
+                    <span className="relative">{groupLabel(group)}</span>
                   </button>
                 );
               })}
@@ -360,7 +375,7 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
             {showFeatured && (
               <SidebarLink
                 id="section-featured"
-                label="Specijalna ponuda"
+                label={ui.featured}
                 count={featured.length}
                 icon={Star}
                 active={activeSection === 'section-featured'}
@@ -436,7 +451,7 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 opacity-35" />
                 <input
-                  placeholder="Pretraži meni..."
+                  placeholder={ui.search}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full rounded-full border border-white/12 bg-white/[0.05] py-2.5 pl-11 pr-10 text-sm outline-none transition-all placeholder:text-[#f5f1e8]/30 focus:border-white/25 focus:bg-white/[0.08]"
@@ -480,7 +495,7 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
                             />
                           )}
                           <Icon className="relative h-3.5 w-3.5" />
-                          <span className="relative">{GROUP_META[group].label}</span>
+                          <span className="relative">{groupLabel(group)}</span>
                         </button>
                       );
                     })}
@@ -489,7 +504,7 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
                 <div className="scrollbar-none flex gap-2 overflow-x-auto pb-0.5">
                   {showFeatured && (
                     <MobilePill
-                      label="Specijalna ponuda"
+                      label={ui.featured}
                       active={activeSection === 'section-featured'}
                       primary={primary}
                       onClick={() => scrollTo('section-featured')}
@@ -536,7 +551,7 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
             {showFeatured && (
               <MenuSection
                 id="section-featured"
-                title="Specijalna ponuda"
+                title={ui.featured}
                 icon={<Sparkles className="h-5 w-5" style={{ color: primary }} />}
                 items={featured}
                 currency={menu.currency}
