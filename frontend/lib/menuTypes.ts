@@ -70,6 +70,8 @@ export interface PublicMenu {
   promoImagePath?: string | null;
   promoCaption?: string | null;
   orderingEnabled?: boolean;
+  /** jezici za koje postoje prevodi (server-side distinct) */
+  availableLangs?: string[];
   categories: MenuCategoryRow[];
 }
 

@@ -65,10 +65,25 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
   const { slug } = use(params);
   const router = useRouter();
 
+  // zapamćeni jezik odmah (da prvi fetch već traži pravi jezik)
+  const [lang, setLang] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    try {
+      return localStorage.getItem(`sd_lang_${slug}`) ?? '';
+    } catch {
+      return '';
+    }
+  });
+
+  // prevodi se dovlače SAMO za izabrani jezik (payload ~8x manji)
   const { data: menu, isLoading, error } = useQuery({
-    queryKey: ['publicMenu', slug],
-    queryFn: () => api<PublicMenuFull>(`/api/public/venues/${slug}/menu`),
+    queryKey: ['publicMenu', slug, lang || 'base'],
+    queryFn: () =>
+      api<PublicMenuFull>(
+        `/api/public/venues/${slug}/menu${lang && lang !== 'bs' ? `?lang=${lang}` : ''}`
+      ),
     staleTime: 60_000,
+    placeholderData: (prev) => prev, // pri promjeni jezika ne treperi cijela stranica
   });
 
   const cart = useCart();
@@ -79,7 +94,6 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [wheelOpen, setWheelOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
-  const [lang, setLang] = useState<string>(''); // '' dok se ne učita defaultLang
   // osvojena nagrada na kolu sreće (perzistira 1h)
   const [wheelWon, setWheelWon] = useState<{ itemId: number; pct: number } | null>(null);
   const mainRef = useRef<HTMLDivElement>(null);
@@ -111,13 +125,9 @@ export default function PublicMenuPage({ params }: { params: Promise<{ slug: str
     setShowLangGate(false);
   };
 
-  // Jezici za koje POSTOJI barem jedan prevod (+ uvijek osnovni bs)
+  // Jezici za koje postoje prevodi — server ih javlja (bez slanja samih prevoda)
   const availableLangs = useMemo(() => {
-    const set = new Set<string>(['bs']);
-    menu?.categories.forEach((c) => {
-      c.translations?.forEach((t) => set.add(t.lang));
-      c.items.forEach((i) => i.translations?.forEach((t) => set.add(t.lang)));
-    });
+    const set = new Set<string>(menu?.availableLangs ?? ['bs']);
     return MENU_LANGS.filter((l) => set.has(l));
   }, [menu]);
 

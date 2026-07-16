@@ -1,6 +1,7 @@
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import { env } from './config/env.js';
 import { prisma } from './lib/prisma.js';
@@ -28,6 +29,8 @@ export function createApp() {
   app.set('trust proxy', env.isProd ? 1 : false);
 
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+  // gzip — veliki JSON odgovori (meni sa prevodima) padnu ~10x
+  app.use(compression());
 
   // FRONTEND_ORIGIN može biti lista (zarezom) — npr. apex + www tokom prelaska domene.
   const allowedOrigins = env.FRONTEND_ORIGIN.split(',')

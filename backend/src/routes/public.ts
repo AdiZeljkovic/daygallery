@@ -50,6 +50,12 @@ publicRouter.get('/legacy/:type/:legacyId', async (req, res, next) => {
  */
 publicRouter.get('/venues/:slug/menu', async (req, res, next) => {
   try {
+    // Prevodi se šalju SAMO za traženi jezik — svi jezici odjednom bi
+    // napuhali payload ~8x (sporo na mobilnoj mreži). 'bs' je osnovni tekst.
+    const langParam = String(req.query.lang ?? '');
+    const lang = /^[a-z]{2}$/.test(langParam) && langParam !== 'bs' ? langParam : null;
+    const translationsInclude = lang ? { where: { lang } } : { where: { lang: '--' } };
+
     const venue = await prisma.venue.findUnique({
       where: { slug: req.params.slug },
       select: {
@@ -81,7 +87,7 @@ publicRouter.get('/venues/:slug/menu', async (req, res, next) => {
                 id: true,
                 name: true,
                 kind: true,
-                translations: true,
+                translations: translationsInclude,
                 items: {
                   where: { isAvailable: true },
                   orderBy: { sortOrder: 'asc' },
@@ -93,7 +99,7 @@ publicRouter.get('/venues/:slug/menu', async (req, res, next) => {
                     imagePath: true,
                     discountPercent: true,
                     isFeatured: true,
-                    translations: true,
+                    translations: translationsInclude,
                   },
                 },
               },
@@ -107,8 +113,16 @@ publicRouter.get('/venues/:slug/menu', async (req, res, next) => {
       return res.status(404).json({ error: 'Objekat nije pronađen' });
     }
 
+    // dostupni jezici prevoda (za 🌐 birač) — bez slanja samih prevoda
+    const langRows = await prisma.menuItemTranslation.findMany({
+      where: { item: { category: { menu: { venueId: venue.id, isActive: true } } } },
+      distinct: ['lang'],
+      select: { lang: true },
+    });
+    const availableLangs = ['bs', ...langRows.map((r) => r.lang).filter((l) => l !== 'bs')];
+
     const { menus, isActive: _isActive, ...venueData } = venue;
-    res.json({ ...venueData, categories: menus[0]?.categories ?? [] });
+    res.json({ ...venueData, availableLangs, categories: menus[0]?.categories ?? [] });
   } catch (err) {
     next(err);
   }
