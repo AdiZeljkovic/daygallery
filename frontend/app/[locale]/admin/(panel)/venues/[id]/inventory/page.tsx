@@ -523,7 +523,12 @@ function StockRow({
                 <button onClick={() => setEditing(false)} className="rounded-full px-4 py-1.5 text-xs font-semibold text-ink/50 hover:bg-ink/5">
                   Odustani
                 </button>
-                <button onClick={save} className="btn-glossy flex items-center gap-1.5 rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-neutral-900">
+                <button
+                  onClick={save}
+                  disabled={mode === 'vol' && (!liters || !serving)}
+                  title={mode === 'vol' && (!liters || !serving) ? 'Upiši litre i veličinu čaše (ml)' : undefined}
+                  className="btn-glossy flex items-center gap-1.5 rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-neutral-900 disabled:opacity-40"
+                >
                   <Check className="h-3.5 w-3.5" /> Sačuvaj
                 </button>
               </div>

@@ -198,6 +198,9 @@ async function deductStock(
 
     if (!result) continue;
 
+    // svaka promjena zaliha → admin inventar se osvježi uživo
+    io?.to(`venue:${venueId}`).emit('stock:changed', { itemId: result.id });
+
     if (result.isOut) {
       io?.to(`venue:${venueId}`).emit('stock:out', { itemId: result.id, name: result.name });
     } else if (result.lowStockAt !== null && result.newQty <= result.lowStockAt) {

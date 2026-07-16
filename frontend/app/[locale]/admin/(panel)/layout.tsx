@@ -196,11 +196,14 @@ export default function AdminPanelLayout({ children }: { children: React.ReactNo
         notify('Nema na stanju ⛔', `${info.name} je sklonjen sa menija`, `stock-${info.name}`);
       }
     };
+    // svaka promjena zaliha (prihvaćena narudžba) → inventar/meni se osvježe uživo
+    const onStockChanged = () => qc.invalidateQueries({ queryKey: ['menu'] });
 
     socket.on('order:new', handleOrderNew);
     socket.on('task:new', onTaskNew);
     socket.on('stock:low', onStockLow);
     socket.on('stock:out', onStockOut);
+    socket.on('stock:changed', onStockChanged);
 
     return () => {
       socket.off('connect', subscribe);
@@ -208,6 +211,7 @@ export default function AdminPanelLayout({ children }: { children: React.ReactNo
       socket.off('task:new', onTaskNew);
       socket.off('stock:low', onStockLow);
       socket.off('stock:out', onStockOut);
+      socket.off('stock:changed', onStockChanged);
     };
   }, [user, myVenueId, qc, handleOrderNew]);
 
