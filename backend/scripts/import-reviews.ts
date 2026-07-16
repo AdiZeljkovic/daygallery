@@ -1,15 +1,34 @@
 /**
- * Jednokratni uvoz recenzije-kampanja iz starog day-gallery sistema.
- * Pokretanje na serveru iz platform/backend:
- *   npx tsx scripts/import-reviews.ts
+ * Jednokratni uvoz recenzije-kampanja iz starog day-gallery sistema (Cloudflare
+ * Pages + D1 + R2).
+ *
+ * VAŽNO: stara domena day-gallery.com sada pokazuje na NOVI sistem, pa se stari
+ * API više NE MOŽE dohvatiti preko nje. Zato je izvor konfigurabilan:
+ *
+ *  A) Stari Pages deployment je još živ (najlakše):
+ *       OLD_REVIEWS_API=https://day-gallery.pages.dev/api/reviews \
+ *         npx tsx scripts/import-reviews.ts
+ *
+ *  B) Pages ugašen → izvezi iz D1 pa uvezi iz fajla:
+ *       npx wrangler d1 execute day-gallery-db --remote \
+ *         --command "SELECT * FROM reviews" --json > scripts/reviews.json
+ *       npx tsx scripts/import-reviews.ts        (automatski nađe scripts/reviews.json)
+ *
  * Idempotentno — preskače kampanje koje već postoje (po nazivu).
  */
 import 'dotenv/config';
+import { readFileSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { nanoid } from 'nanoid';
 import { prisma } from '../src/lib/prisma.js';
 import { processImage } from '../src/services/imageService.js';
 
-const OLD_API = 'https://day-gallery.com/api/reviews';
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Stari Cloudflare Pages projekat se zove "day-gallery" → *.pages.dev
+const OLD_API = process.env.OLD_REVIEWS_API ?? 'https://day-gallery.pages.dev/api/reviews';
+const LOCAL_FILE = join(__dirname, 'reviews.json');
 
 interface OldReview {
   name: string;
@@ -18,13 +37,48 @@ interface OldReview {
   protectionEnabled?: number | boolean;
 }
 
-async function main() {
+/** Izvuče niz recenzija iz D1 `wrangler --json` izlaza ili običnog niza. */
+function normalize(raw: unknown): OldReview[] {
+  if (Array.isArray(raw)) {
+    // wrangler --json → [{ results: [...] }]
+    if (raw.length && typeof raw[0] === 'object' && raw[0] !== null && 'results' in raw[0]) {
+      return (raw[0] as { results: OldReview[] }).results ?? [];
+    }
+    return raw as OldReview[];
+  }
+  if (raw && typeof raw === 'object' && 'results' in raw) {
+    return (raw as { results: OldReview[] }).results ?? [];
+  }
+  return [];
+}
+
+async function loadReviews(): Promise<OldReview[]> {
+  // 1) lokalni izvoz iz D1 ima prednost (radi i kad je Pages ugašen)
+  if (existsSync(LOCAL_FILE)) {
+    console.log(`Čitam lokalni izvoz: ${LOCAL_FILE}`);
+    return normalize(JSON.parse(readFileSync(LOCAL_FILE, 'utf8')));
+  }
+  // 2) stari API
   console.log('Dohvaćam recenzije sa', OLD_API, '...');
   const res = await fetch(OLD_API);
-  if (!res.ok) throw new Error(`Stari API vratio ${res.status}`);
-  const list = (await res.json()) as OldReview[];
-  console.log(`Pronađeno ${list.length} kampanja.\n`);
+  if (!res.ok) {
+    throw new Error(
+      `Stari API vratio ${res.status}. ` +
+        `Ako je stari Pages ugašen, izvezi iz D1 u scripts/reviews.json (vidi vrh fajla).`
+    );
+  }
+  return normalize(await res.json());
+}
 
+async function main() {
+  const list = await loadReviews();
+  console.log(`Pronađeno ${list.length} kampanja.\n`);
+  if (!list.length) {
+    console.log('Ništa za uvoz — provjeri izvor (OLD_REVIEWS_API ili scripts/reviews.json).');
+    return;
+  }
+
+  let imported = 0;
   for (const r of list) {
     const name = String(r.name ?? '').trim();
     if (!name) continue;
@@ -66,15 +120,16 @@ async function main() {
       }
     }
 
+    imported++;
     console.log(`✓ uvezeno: ${name}  →  /r/${campaign.slug}`);
   }
 
-  await prisma.$disconnect();
-  console.log('\nGotovo.');
+  console.log(`\n✔ Gotovo. Uvezeno ${imported} novih kampanja.`);
 }
 
-main().catch(async (e) => {
-  console.error('Greška:', e);
-  await prisma.$disconnect();
-  process.exit(1);
-});
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(() => prisma.$disconnect());
