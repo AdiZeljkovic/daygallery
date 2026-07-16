@@ -29,10 +29,13 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # Slike direktno s diska (ne kroz Node)
     location /uploads/ {
-        proxy_pass http://127.0.0.1:4712;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        alias /home/day-gallery/web/day-gallery.com/uploads/;
+        expires 365d;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+        try_files $uri =404;
     }
 
     location /socket.io/ {

@@ -64,9 +64,10 @@ export default function MenuEditorPage({ params }: { params: Promise<{ id: strin
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: ['menu', venueId] });
 
+  // editor treba prevode → ?translations=1 (zaseban key od laganog inventar/kolo tree-a)
   const { data: menu, isLoading } = useQuery({
-    queryKey: ['menu', venueId],
-    queryFn: () => api<AdminMenuTree>(`/api/venues/${venueId}/menu`),
+    queryKey: ['menu', venueId, 'full'],
+    queryFn: () => api<AdminMenuTree>(`/api/venues/${venueId}/menu?translations=1`),
   });
 
   const { data: venue } = useQuery({

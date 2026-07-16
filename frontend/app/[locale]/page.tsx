@@ -172,6 +172,8 @@ function CursorGlow() {
   const sx = useSpring(x, { stiffness: 120, damping: 20 });
   const sy = useSpring(y, { stiffness: 120, damping: 20 });
   useEffect(() => {
+    // samo desktop sa preciznim pokazivačem — na touch/mobitelu nepotreban trošak
+    if (!window.matchMedia('(min-width: 1024px) and (pointer: fine)').matches) return;
     const move = (e: MouseEvent) => {
       x.set(e.clientX);
       y.set(e.clientY);
@@ -933,6 +935,8 @@ function StripRow({ shots, className, aria }: { shots: GalleryShot[]; className:
             src={imageUrl(s.thumbPath || s.filePath)!}
             alt={s.event?.clientNames ?? ''}
             loading="lazy"
+            width={384}
+            height={256}
             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />

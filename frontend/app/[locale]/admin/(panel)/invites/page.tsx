@@ -185,7 +185,7 @@ function RsvpModal({ invite, onClose }: { invite: InviteRow; onClose: () => void
   const { data, isLoading } = useQuery({
     queryKey: ['rsvps', invite.id],
     queryFn: () => api<RsvpData>(`/api/invites/${invite.id}/rsvps`),
-    refetchInterval: 5_000, // live tokom slanja pozivnica
+    refetchInterval: 15_000, // live tokom slanja pozivnica
   });
 
   const q = search.toLowerCase();

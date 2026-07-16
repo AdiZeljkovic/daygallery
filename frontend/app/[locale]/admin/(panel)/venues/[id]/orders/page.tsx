@@ -66,7 +66,7 @@ export default function OrdersDashboardPage({ params }: { params: Promise<{ id: 
         `/api/venues/${venueId}/orders${qs ? `?${qs}` : ''}`
       );
     },
-    refetchInterval: day ? false : 30_000, // historijski dan se ne mijenja
+    refetchInterval: day ? false : 60_000, // socket je primarni; poll je fallback
   });
 
   const { data: stats, isLoading: statsLoading } = useQuery({

@@ -100,15 +100,15 @@ groupsRouter.delete(
     });
     await prisma.staffGroup.delete({ where: { id } }); // cascade briše članstva
 
-    // počisti staff naloge koji su postojali samo radi ove grupe
-    for (const { userId } of members) {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { role: true, _count: { select: { groupMemberships: true } }, staffOf: { select: { id: true } } },
+    // počisti staff naloge koji su postojali samo radi ove grupe (batch, ne u petlji)
+    const userIds = members.map((m) => m.userId);
+    if (userIds.length) {
+      const users = await prisma.user.findMany({
+        where: { id: { in: userIds }, role: 'staff', staffOf: null },
+        select: { id: true, _count: { select: { groupMemberships: true } } },
       });
-      if (user?.role === 'staff' && user._count.groupMemberships === 0 && !user.staffOf) {
-        await prisma.user.delete({ where: { id: userId } });
-      }
+      const orphanIds = users.filter((u) => u._count.groupMemberships === 0).map((u) => u.id);
+      if (orphanIds.length) await prisma.user.deleteMany({ where: { id: { in: orphanIds } } });
     }
     res.json({ success: true });
   })

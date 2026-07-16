@@ -20,6 +20,9 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         // API_PORT=4712 se čita iz backend/.env (dotenv)
+        // sharp/image encode ide na libuv threadpool (default 4) — podigni da
+        // paralelni uploadi ne guše event loop (narudžbe/API)
+        UV_THREADPOOL_SIZE: '8',
       },
       instances: 1,
       exec_mode: 'fork',

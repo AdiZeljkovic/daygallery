@@ -449,7 +449,7 @@ model InventoryItem {
 
   venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
 
-  @@index([venueId])
+  @@index([venueId, name])
   @@map("inventory_items")
 }
 
@@ -518,7 +518,7 @@ model PrivateFeedback {
 
   venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
 
-  @@index([venueId])
+  @@index([venueId, createdAt])
   @@map("private_feedback")
 }
 

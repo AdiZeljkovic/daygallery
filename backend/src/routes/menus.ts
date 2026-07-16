@@ -70,32 +70,32 @@ menusRouter.get(
   requireVenueAccess(), // čitanje: i osoblje (inventar prikaz)
   wrap(async (req, res) => {
     const venueId = idParam(req);
-    let menu = await prisma.menu.findFirst({
-      where: { venueId, isActive: true },
-      include: {
-        categories: {
-          orderBy: { sortOrder: 'asc' },
-          include: {
-            translations: true,
-            items: { orderBy: { sortOrder: 'asc' }, include: { translations: true } },
+    // Prevodi se uključuju SAMO za editor (?translations=1). Inventar/kolo ih ne
+    // trebaju — bez njih payload je višestruko manji (7 jezika × svaki artikal).
+    const withTranslations = req.query.translations === '1';
+    const menuInclude = {
+      categories: {
+        orderBy: { sortOrder: 'asc' as const },
+        include: {
+          translations: withTranslations,
+          items: {
+            orderBy: { sortOrder: 'asc' as const },
+            include: { translations: withTranslations },
           },
         },
       },
+    };
+
+    let menu = await prisma.menu.findFirst({
+      where: { venueId, isActive: true },
+      include: menuInclude,
     });
 
     if (!menu) {
       await prisma.menu.create({ data: { venueId, name: 'Glavni meni' } });
       menu = await prisma.menu.findFirst({
         where: { venueId, isActive: true },
-        include: {
-          categories: {
-            orderBy: { sortOrder: 'asc' },
-            include: {
-              translations: true,
-              items: { orderBy: { sortOrder: 'asc' }, include: { translations: true } },
-            },
-          },
-        },
+        include: menuInclude,
       });
     }
     res.json(menu);

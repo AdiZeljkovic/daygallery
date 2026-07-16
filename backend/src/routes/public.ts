@@ -44,6 +44,22 @@ publicRouter.get('/legacy/:type/:legacyId', async (req, res, next) => {
   }
 });
 
+// availableLangs se mijenja samo pri (re)prevodu menija — keširaj 60s po venueId
+// (izbjegava join kroz 3 tabele na svaki QR skan).
+const langsCache = new Map<number, { langs: string[]; exp: number }>();
+async function getAvailableLangs(venueId: number): Promise<string[]> {
+  const hit = langsCache.get(venueId);
+  if (hit && hit.exp > Date.now()) return hit.langs;
+  const rows = await prisma.menuItemTranslation.findMany({
+    where: { item: { category: { menu: { venueId, isActive: true } } } },
+    distinct: ['lang'],
+    select: { lang: true },
+  });
+  const langs = ['bs', ...rows.map((r) => r.lang).filter((l) => l !== 'bs')];
+  langsCache.set(venueId, { langs, exp: Date.now() + 60_000 });
+  return langs;
+}
+
 /**
  * Javni meni po venue slug-u — samo aktivne kategorije/dostupni artikli,
  * uključuje prevode i temu. Bez autha (QR target).
@@ -113,13 +129,11 @@ publicRouter.get('/venues/:slug/menu', async (req, res, next) => {
       return res.status(404).json({ error: 'Objekat nije pronađen' });
     }
 
-    // dostupni jezici prevoda (za 🌐 birač) — bez slanja samih prevoda
-    const langRows = await prisma.menuItemTranslation.findMany({
-      where: { item: { category: { menu: { venueId: venue.id, isActive: true } } } },
-      distinct: ['lang'],
-      select: { lang: true },
-    });
-    const availableLangs = ['bs', ...langRows.map((r) => r.lang).filter((l) => l !== 'bs')];
+    // dostupni jezici prevoda (za 🌐 birač) — keširano, bez slanja samih prevoda
+    const availableLangs = await getAvailableLangs(venue.id);
+
+    // kratki javni cache — QR skanovi istog menija ne udaraju bazu svaki put
+    res.set('Cache-Control', 'public, max-age=30');
 
     const { menus, isActive: _isActive, ...venueData } = venue;
     res.json({ ...venueData, availableLangs, categories: menus[0]?.categories ?? [] });

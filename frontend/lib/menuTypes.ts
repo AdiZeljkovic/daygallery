@@ -80,6 +80,14 @@ export const UPLOADS_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:
 export const imageUrl = (path: string | null | undefined) =>
   path ? `${UPLOADS_URL}/uploads/${path}` : null;
 
+/**
+ * URL thumbnail varijante (processImage snima `<ime>_thumb.webp` uz punu sliku).
+ * Za kartice/liste — puno manje bajtova. Stare slike bez thumba: koristi onError
+ * fallback na `imageUrl()` u komponenti.
+ */
+export const thumbUrl = (path: string | null | undefined) =>
+  path ? `${UPLOADS_URL}/uploads/${path.replace(/\.webp$/, '_thumb.webp')}` : null;
+
 /** Ista logika kao backend finalPrice — za prikaz. */
 export const finalPrice = (price: string | number, discountPercent: number | null): number => {
   const p = typeof price === 'string' ? parseFloat(price) : price;

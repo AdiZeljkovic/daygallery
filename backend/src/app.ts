@@ -3,7 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
-import { env } from './config/env.js';
+import { env, allowedOrigins } from './config/env.js';
 import { prisma } from './lib/prisma.js';
 import { globalLimiter } from './middleware/rateLimit.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -32,10 +32,7 @@ export function createApp() {
   // gzip — veliki JSON odgovori (meni sa prevodima) padnu ~10x
   app.use(compression());
 
-  // FRONTEND_ORIGIN može biti lista (zarezom) — npr. apex + www tokom prelaska domene.
-  const allowedOrigins = env.FRONTEND_ORIGIN.split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
+  // FRONTEND_ORIGIN može biti lista (zarezom) — apex + www; allowedOrigins iz env.ts
   app.use(
     cors({
       origin: (origin, cb) => {

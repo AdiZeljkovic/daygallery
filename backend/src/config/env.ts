@@ -41,3 +41,8 @@ export const env = {
   isProd: parsed.data.NODE_ENV === 'production',
   uploadsDir: path.resolve(backendRoot, parsed.data.UPLOADS_DIR),
 };
+
+/** FRONTEND_ORIGIN kao lista — koristi se i za Express CORS i za Socket.io. */
+export const allowedOrigins = env.FRONTEND_ORIGIN.split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);

@@ -2,9 +2,10 @@ import 'dotenv/config';
 import { createServer } from 'node:http';
 import fs from 'node:fs';
 import { env } from './config/env.js';
+import { prisma } from './lib/prisma.js';
 import { initSentry, captureError } from './lib/sentry.js';
 import { createApp } from './app.js';
-import { attachSockets } from './sockets/index.js';
+import { attachSockets, io } from './sockets/index.js';
 
 // Sentry prvo — da uhvati i greške pri pokretanju
 initSentry();
@@ -14,6 +15,11 @@ fs.mkdirSync(env.uploadsDir, { recursive: true });
 const app = createApp();
 const server = createServer(app);
 attachSockets(server);
+
+// Timeouti — spor/viseći klijent ne smije držati konekciju/thread zauvijek.
+server.requestTimeout = 30_000;
+server.keepAliveTimeout = 65_000;
+server.headersTimeout = 66_000;
 
 server.listen(env.API_PORT, () => {
   console.log(`✅ API sluša na http://localhost:${env.API_PORT} (${env.NODE_ENV})`);
@@ -35,7 +41,11 @@ process.on('uncaughtException', (err) => {
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
     console.log(`${signal} — gasim server...`);
-    server.close(() => process.exit(0));
+    io?.close(); // zatvori WebSocket konekcije
+    server.close(async () => {
+      await prisma.$disconnect(); // pusti DB konekcije čisto
+      process.exit(0);
+    });
     setTimeout(() => process.exit(0), 5000).unref();
   });
 }

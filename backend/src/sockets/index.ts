@@ -1,6 +1,6 @@
 import type { Server as HttpServer } from 'node:http';
 import { Server } from 'socket.io';
-import { env } from '../config/env.js';
+import { allowedOrigins } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import { AUTH_COOKIE, resolveUserFromToken } from '../services/authService.js';
 import { resolveVenueAccess } from '../middleware/venueAccess.js';
@@ -19,7 +19,14 @@ function getCookie(header: string | undefined, name: string): string | undefined
 
 export function attachSockets(server: HttpServer) {
   io = new Server(server, {
-    cors: { origin: env.FRONTEND_ORIGIN, credentials: true },
+    cors: {
+      // ista lista kao Express — inače www domena gubi WebSocket (CORS reject)
+      origin: (origin, cb) => {
+        if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+        cb(new Error('CORS: nedozvoljen origin'));
+      },
+      credentials: true,
+    },
   });
 
   // Handshake: JWT cookie ako postoji (admin); bez tokena = gost (samo order sobe)

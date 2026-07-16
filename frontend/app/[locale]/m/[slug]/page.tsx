@@ -32,6 +32,7 @@ import {
   type MenuCategoryRow,
   type MenuItemRow,
   imageUrl,
+  thumbUrl,
   finalPrice,
   fmtPrice,
 } from '@/lib/menuTypes';
@@ -1111,20 +1112,22 @@ function ImageCard({
   onAdd: () => void;
 }) {
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 22 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-40px' }}
-      transition={{ duration: 0.5, ease: 'easeOut' }}
-      whileHover={{ y: -4 }}
-      className="group overflow-hidden rounded-2xl border border-white/8 bg-white/[0.045] backdrop-blur-sm transition-colors hover:border-white/16"
-    >
+    <article className="menu-card group overflow-hidden rounded-2xl border border-white/8 bg-white/[0.045] backdrop-blur-sm transition-[transform,border-color] duration-300 hover:-translate-y-1 hover:border-white/16">
       <div className="relative aspect-[16/10] overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={imageUrl(item.imagePath)!}
+          src={thumbUrl(item.imagePath)!}
           alt={item.name}
           loading="lazy"
+          width={400}
+          height={250}
+          onError={(e) => {
+            const img = e.currentTarget;
+            if (!img.dataset.full) {
+              img.dataset.full = '1';
+              img.src = imageUrl(item.imagePath)!;
+            }
+          }}
           className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.06]"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0c0b09]/55 via-transparent to-transparent" />
@@ -1158,7 +1161,7 @@ function ImageCard({
           </div>
         )}
       </div>
-    </motion.article>
+    </article>
   );
 }
 
@@ -1176,19 +1179,22 @@ function CompactCard({
   onAdd: () => void;
 }) {
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-30px' }}
-      transition={{ duration: 0.4 }}
-      className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.045] p-3 backdrop-blur-sm transition-colors hover:border-white/16"
-    >
+    <article className="menu-card flex items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.045] p-3 backdrop-blur-sm transition-colors hover:border-white/16">
       {item.imagePath && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={imageUrl(item.imagePath)!}
+          src={thumbUrl(item.imagePath)!}
           alt={item.name}
           loading="lazy"
+          width={56}
+          height={56}
+          onError={(e) => {
+            const img = e.currentTarget;
+            if (!img.dataset.full) {
+              img.dataset.full = '1';
+              img.src = imageUrl(item.imagePath)!;
+            }
+          }}
           className="h-14 w-14 shrink-0 rounded-xl object-cover"
         />
       )}
@@ -1215,7 +1221,7 @@ function CompactCard({
         </div>
       </div>
       {ordering && <AddButton primary={primary} onAdd={onAdd} small />}
-    </motion.article>
+    </article>
   );
 }
 

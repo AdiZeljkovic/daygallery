@@ -34,7 +34,7 @@ export default function ModerationPage() {
   const { data: images, isLoading } = useQuery({
     queryKey: ['moderationPending'],
     queryFn: () => api<PendingImage[]>('/api/events/moderation/pending'),
-    refetchInterval: 30_000,
+    // badge u layoutu već poll-a isti key (60s) — bez zasebnog intervala ovdje
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['moderationPending'] });

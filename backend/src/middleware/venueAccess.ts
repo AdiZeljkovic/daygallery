@@ -31,40 +31,43 @@ export async function resolveVenueAccess(
 ): Promise<Request['venueAccess'] | null> {
   if (user.role === 'superadmin') return { venueId, via: 'superadmin' };
 
+  // 1 upit umjesto 3: vlasnik + osoblje(filtrirano na usera) + član grupe(filtrirano)
   const venue = await prisma.venue.findUnique({
     where: { id: venueId },
-    select: { ownerUserId: true, groupId: true },
+    select: {
+      ownerUserId: true,
+      staff: { where: { userId: user.id }, select: { role: true } },
+      group: {
+        select: { members: { where: { userId: user.id }, select: { role: true, permissions: true } } },
+      },
+    },
   });
   if (!venue) return null;
   if (venue.ownerUserId === user.id) return { venueId, via: 'owner' };
 
   // klasično osoblje objekta (VenueStaff)
-  const staff = await prisma.venueStaff.findUnique({ where: { userId: user.id } });
-  if (staff && staff.venueId === venueId) {
+  const staff = venue.staff[0];
+  if (staff) {
     if (staffRoles && !staffRoles.includes(staff.role)) {
-      // rola ne zadovoljava — ali modul-pristup po defaultu role može (npr. buduće šeme)
+      // rola ne zadovoljava — ali modul-pristup po defaultu role može (buduće šeme)
       if (!modules?.some((m) => DEFAULT_MODULE_PERMS[staff.role][m])) return null;
     }
     return { venueId, via: staff.role };
   }
 
   // član grupe dodijeljene objektu
-  if (venue.groupId) {
-    const member = await prisma.staffGroupMember.findUnique({
-      where: { groupId_userId: { groupId: venue.groupId, userId: user.id } },
-    });
-    if (member) {
-      const perms = {
-        ...DEFAULT_MODULE_PERMS[member.role],
-        ...((member.permissions as Partial<Record<PanelModule, boolean>> | null) ?? {}),
-      };
-      if (modules && modules.length > 0) {
-        if (!modules.some((m) => perms[m])) return null;
-      } else if (staffRoles && !staffRoles.includes(member.role)) {
-        return null;
-      }
-      return { venueId, via: member.role };
+  const member = venue.group?.members[0];
+  if (member) {
+    const perms = {
+      ...DEFAULT_MODULE_PERMS[member.role],
+      ...((member.permissions as Partial<Record<PanelModule, boolean>> | null) ?? {}),
+    };
+    if (modules && modules.length > 0) {
+      if (!modules.some((m) => perms[m])) return null;
+    } else if (staffRoles && !staffRoles.includes(member.role)) {
+      return null;
     }
+    return { venueId, via: member.role };
   }
 
   return null;
