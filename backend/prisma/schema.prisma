@@ -526,6 +526,8 @@ model PrivateFeedback {
 model ReviewCampaign {
   id              Int      @id @default(autoincrement())
   slug            String   @unique
+  // stari day-gallery review id — da podijeljeni linkovi /recenzije?id=<legacyId> rade
+  legacyId        String?  @unique @map("legacy_id") @db.VarChar(64)
   name            String   @db.VarChar(150)
   googleReviewUrl String?  @map("google_review_url") @db.VarChar(500)
   logoPath        String?  @map("logo_path") @db.VarChar(255)

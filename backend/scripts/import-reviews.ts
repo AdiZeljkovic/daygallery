@@ -31,6 +31,7 @@ const OLD_API = process.env.OLD_REVIEWS_API ?? 'https://day-gallery.pages.dev/ap
 const LOCAL_FILE = join(__dirname, 'reviews.json');
 
 interface OldReview {
+  id?: string; // stari D1 id — čuva se kao legacyId (podijeljeni /recenzije?id=... linkovi)
   name: string;
   logoImage?: string | null;
   googleReviewLink?: string | null;
@@ -79,19 +80,33 @@ async function main() {
   }
 
   let imported = 0;
+  let backfilled = 0;
   for (const r of list) {
     const name = String(r.name ?? '').trim();
     if (!name) continue;
+    const legacyId = r.id ? String(r.id) : null;
 
-    const existing = await prisma.reviewCampaign.findFirst({ where: { name } });
+    // već uvezeno? (po legacyId, pa po nazivu — za ranije uvoze bez legacyId)
+    const existing =
+      (legacyId ? await prisma.reviewCampaign.findUnique({ where: { legacyId } }) : null) ??
+      (await prisma.reviewCampaign.findFirst({ where: { name } }));
+
     if (existing) {
-      console.log(`↷ preskačem (već postoji): ${name}`);
+      // dopuni legacyId ako fali → stari /recenzije?id=... linkovi prorade
+      if (legacyId && !existing.legacyId) {
+        await prisma.reviewCampaign.update({ where: { id: existing.id }, data: { legacyId } });
+        backfilled++;
+        console.log(`↻ dopunjen legacyId: ${name}  →  /r/${existing.slug}`);
+      } else {
+        console.log(`↷ preskačem (već postoji): ${name}`);
+      }
       continue;
     }
 
     const campaign = await prisma.reviewCampaign.create({
       data: {
         slug: nanoid(10),
+        legacyId,
         name,
         googleReviewUrl: r.googleReviewLink || null,
         gateEnabled: r.protectionEnabled === 1 || r.protectionEnabled === true,
@@ -124,7 +139,7 @@ async function main() {
     console.log(`✓ uvezeno: ${name}  →  /r/${campaign.slug}`);
   }
 
-  console.log(`\n✔ Gotovo. Uvezeno ${imported} novih kampanja.`);
+  console.log(`\n✔ Gotovo. Uvezeno ${imported} novih, dopunjeno ${backfilled} postojećih (legacyId).`);
 }
 
 main()

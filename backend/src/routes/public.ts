@@ -33,6 +33,12 @@ publicRouter.get('/legacy/:type/:legacyId', async (req, res, next) => {
     } else if (type === 'invite') {
       const i = await prisma.invite.findUnique({ where: { legacyId }, select: { slug: true } });
       slug = i?.slug ?? null;
+    } else if (type === 'review') {
+      const c = await prisma.reviewCampaign.findUnique({
+        where: { legacyId },
+        select: { slug: true },
+      });
+      slug = c?.slug ?? null;
     } else {
       return res.status(400).json({ error: 'Nepoznat tip' });
     }

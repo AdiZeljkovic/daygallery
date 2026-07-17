@@ -8,7 +8,7 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
  * `newPath(slug)` gradi odredišni URL (npr. (slug) => `/m/${slug}`).
  */
 export async function legacyRedirect(
-  type: 'menu' | 'gallery' | 'upload' | 'tables' | 'invite',
+  type: 'menu' | 'gallery' | 'upload' | 'tables' | 'invite' | 'review',
   id: string | undefined,
   newPath: (slug: string) => string
 ): Promise<never> {
