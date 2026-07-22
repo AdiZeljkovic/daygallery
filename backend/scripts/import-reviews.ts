@@ -28,7 +28,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Stari Cloudflare Pages projekat se zove "day-gallery" → *.pages.dev
 const OLD_API = process.env.OLD_REVIEWS_API ?? 'https://day-gallery.pages.dev/api/reviews';
-const LOCAL_FILE = join(__dirname, 'reviews.json');
+// Stari Cloudflare sistem se gasi — arhiva u legacy-data/ je primarni izvor.
+const ARCHIVE_DIR = join(__dirname, 'legacy-data');
+const LOCAL_FILE = existsSync(join(ARCHIVE_DIR, 'reviews.json'))
+  ? join(ARCHIVE_DIR, 'reviews.json')
+  : join(__dirname, 'reviews.json');
 
 interface OldReview {
   id?: string; // stari D1 id — čuva se kao legacyId (podijeljeni /recenzije?id=... linkovi)
@@ -113,12 +117,20 @@ async function main() {
       },
     });
 
-    // logo (preuzmi sa R2, obradi u webp, spremi)
+    // logo — prvo iz lokalne arhive (R2 se gasi), pa R2 kao rezerva
     if (r.logoImage) {
       try {
-        const imgRes = await fetch(r.logoImage);
-        if (imgRes.ok) {
-          const buf = Buffer.from(await imgRes.arrayBuffer());
+        const archived = join(
+          ARCHIVE_DIR,
+          'images',
+          r.logoImage.replace(/.*r2\.dev\//, '').replace(/\//g, '_').replace(/[^A-Za-z0-9._-]/g, '')
+        );
+        const buf = existsSync(archived)
+          ? readFileSync(archived)
+          : await fetch(r.logoImage).then(async (res) =>
+              res.ok ? Buffer.from(await res.arrayBuffer()) : null
+            );
+        if (buf) {
           const processed = await processImage(buf, `reviews/${campaign.id}`, {
             maxDim: 512,
             quality: 82,
@@ -128,7 +140,7 @@ async function main() {
             data: { logoPath: processed.filePath },
           });
         } else {
-          console.log(`  (logo nije preuzet — HTTP ${imgRes.status})`);
+          console.log('  (logo nije dostupan ni u arhivi ni na R2)');
         }
       } catch (e) {
         console.log(`  (logo greška: ${e instanceof Error ? e.message : e})`);

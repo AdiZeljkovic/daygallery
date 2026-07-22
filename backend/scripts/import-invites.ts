@@ -15,10 +15,15 @@
  * Stolovi se vežu na event preko event.legacyId (event mora biti prethodno uvezen).
  */
 import 'dotenv/config';
+import { readFileSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { prisma } from '../src/lib/prisma.js';
 import { nanoid } from 'nanoid';
 import { processImage } from '../src/services/imageService.js';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ARCHIVE = join(__dirname, 'legacy-data');
 const BASE = process.env.OLD_API_BASE ?? 'https://day-gallery.pages.dev';
 
 interface OldRsvp {
@@ -57,15 +62,48 @@ interface OldTable {
   guests?: string | null;
 }
 
+/**
+ * Podaci: PRVO lokalna arhiva (scripts/legacy-data/), pa tek onda stari API.
+ * Stari Cloudflare sistem se gasi — arhiva je jedini pouzdan izvor.
+ */
 async function get<T>(path: string): Promise<T> {
+  const file = join(ARCHIVE, `${path.replace('/api/', '')}.json`);
+  if (existsSync(file)) {
+    console.log(`  (arhiva: ${file.replace(ARCHIVE, 'legacy-data')})`);
+    return JSON.parse(readFileSync(file, 'utf8')) as T;
+  }
+  console.log(`  (arhiva nema ${path} — pokušavam stari API)`);
   const res = await fetch(`${BASE}${path}`);
   if (!res.ok) throw new Error(`${path} → HTTP ${res.status}`);
   return (await res.json()) as T;
 }
 
-/** Skida sliku sa R2 i propušta kroz sharp pipeline. */
+/** Naziv fajla u arhivi slika — isti obrazac kao skripta koja ih je preuzela. */
+const archiveName = (url: string) =>
+  url
+    .replace(/.*r2\.dev\//, '')
+    .replace(/\//g, '_')
+    .replace(/[^A-Za-z0-9._-]/g, '');
+
+/**
+ * Slika: prvo iz lokalne arhive (legacy-data/images/), pa R2 kao rezerva.
+ * Propušta kroz sharp pipeline (webp + thumb) kao i svaki drugi upload.
+ */
 async function importImage(url: string | null | undefined, subdir: string) {
   if (!url || !url.startsWith('http')) return null;
+
+  // 1) lokalna arhiva — radi i kad R2 nestane
+  const local = join(ARCHIVE, 'images', archiveName(url));
+  if (existsSync(local)) {
+    try {
+      const buf = readFileSync(local);
+      if (buf.length >= 500) return await processImage(buf, subdir, { maxDim: 2000 });
+    } catch (e) {
+      console.log(`    ⚠ arhiva slike: ${(e as Error).message}`);
+    }
+  }
+
+  // 2) R2 (dok još živi)
   try {
     const res = await fetch(url);
     if (!res.ok) {

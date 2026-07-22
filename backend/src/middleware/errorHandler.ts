@@ -28,10 +28,14 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
   // express.json / multer prekoračenje veličine
   const code = (err as { type?: string; code?: string }).type ?? (err as { code?: string }).code;
   if (code === 'entity.too.large' || code === 'LIMIT_FILE_SIZE') {
-    return res.status(413).json({ error: 'Podaci su preveliki' });
+    return res.status(413).json({ error: 'Slika je prevelika (max 8 MB po slici)' });
   }
-  if (code === 'LIMIT_FILE_COUNT' || code === 'LIMIT_UNEXPECTED_FILE') {
-    return res.status(400).json({ error: 'Previše fajlova u jednom zahtjevu (max 10)' });
+  if (code === 'LIMIT_FILE_COUNT' || code === 'LIMIT_UNEXPECTED_FILE' || code === 'LIMIT_PART_COUNT') {
+    return res.status(400).json({ error: 'Previše fajlova odjednom — pošaljite ih u manjim serijama' });
+  }
+  // fileFilter odbio ne-sliku
+  if (err instanceof Error && err.message === 'Dozvoljene su samo slike') {
+    return res.status(400).json({ error: err.message });
   }
 
   // Neočekivana greška → log + Sentry (bez tijela zahtjeva, samo kontekst rute)

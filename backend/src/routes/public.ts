@@ -292,7 +292,7 @@ publicRouter.get('/events/:slug', async (req, res, next) => {
 publicRouter.post(
   '/events/:slug/images',
   uploadLimiter,
-  imageUpload.array('images', 10),
+  imageUpload.array('images', 6), // usklađeno sa multer limits.files (frontend šalje serije od 5)
   async (req, res, next) => {
     try {
       const event = await prisma.event.findUnique({

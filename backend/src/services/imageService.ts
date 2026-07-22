@@ -6,10 +6,27 @@ import { nanoid } from 'nanoid';
 import { env } from '../config/env.js';
 import { HttpError } from '../middleware/errorHandler.js';
 
-/** multer u memoriju — sharp decode služi kao prava validacija sadržaja */
+/**
+ * multer u memoriju — sharp decode služi kao prava validacija sadržaja.
+ *
+ * Limiti su namjerno konzervativni: sve ide kroz RAM, a PM2 restartuje API na
+ * 400 MB. Prije: 10 MB × 10 = do 100 MB po zahtjevu → nekoliko paralelnih
+ * uploada (svadba!) moglo je oboriti API usred narudžbi.
+ * Sada: 8 MB × 6 = max 48 MB po zahtjevu, bez utjecaja na goste.
+ */
 export const imageUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024, files: 10 },
+  limits: {
+    fileSize: 8 * 1024 * 1024, // telefonske slike stanu; frontend ih ionako kompresuje
+    files: 6, // gostov upload šalje serije od 5 (g/[slug]) — 6 daje rezervu
+    fields: 10,
+    parts: 20,
+  },
+  // odbij ne-slike prije nego uđu u RAM (sharp je i dalje prava validacija)
+  fileFilter: (_req, file, cb) => {
+    if (!/^image\//.test(file.mimetype)) return cb(new Error('Dozvoljene su samo slike'));
+    cb(null, true);
+  },
 });
 
 export interface ProcessedImage {
